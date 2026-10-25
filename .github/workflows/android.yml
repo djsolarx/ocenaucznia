@@ -1,4 +1,4 @@
-name: Android APK
+﻿name: Android APK
 
 on:
   push:
@@ -29,6 +29,10 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build APK
+        run: chmod +x gradlew
+        shell: bash
+
+      - name: Compile APK
         run: ./gradlew assembleDebug
 
       - name: Upload APK
