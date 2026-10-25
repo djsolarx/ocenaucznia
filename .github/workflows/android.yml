@@ -16,7 +16,7 @@ jobs:
     timeout-minutes: 45
 
     env:
-      ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/opinia-ucznia-release.jks
+      ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/opinia-ucznia-release.jks
 
     steps:
       - name: Checkout repository
