@@ -1,4 +1,4 @@
-﻿package com.example.opiniaucznia
+package com.example.opiniaucznia
 
 import android.app.Activity
 import android.app.DatePickerDialog
@@ -25,6 +25,13 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.asImageBitmap
 import android.graphics.Bitmap
 import com.google.zxing.BarcodeFormat
@@ -153,8 +160,8 @@ private fun CheckForUpdates() {
             text = {
                 Text(
                     update.message +
-                        "\n\nNowa wersja: ${update.versionName}" +
-                        "\nZainstalowana wersja jest starsza."
+                            "\n\nNowa wersja: ${update.versionName}" +
+                            "\nZainstalowana wersja jest starsza."
                 )
             },
             confirmButton = {
@@ -622,6 +629,16 @@ fun OpinionApp() {
                 }
             }
         )
+    } else if (page == -2) {
+        AboutAppScreen(
+            onBack = { page = -1 },
+            onOpenWebsite = {
+                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://pggp.pl"))) }
+            },
+            onSupport = {
+                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://buycoffee.to/trustmatrix"))) }
+            }
+        )
     } else if (page == -1) {
         Scaffold { padding ->
             Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -637,6 +654,10 @@ fun OpinionApp() {
                     page = 0
                     status = "Rozpoczęto nową opinię."
                 }, modifier = Modifier.fillMaxWidth()) { Text("Nowa opinia") }
+                OutlinedButton(
+                    onClick = { page = -2 },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("O aplikacji") }
                 HorizontalDivider()
                 Text("Baza uczniów", style = MaterialTheme.typography.titleLarge)
                 Text("Uczniów można archiwizować bez usuwania ich opinii.", style = MaterialTheme.typography.bodyMedium)
@@ -754,7 +775,7 @@ fun OpinionApp() {
                         text = {
                             Text(
                                 "Czy na pewno przenieść ucznia „${pendingArchiveName}” do archiwum? " +
-                                    "Opinia nie zostanie usunięta i będzie można ją później przywrócić."
+                                        "Opinia nie zostanie usunięta i będzie można ją później przywrócić."
                             )
                         },
                         confirmButton = {
@@ -950,6 +971,102 @@ fun OpinionApp() {
 
 }
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun AboutAppScreen(
+    onBack: () -> Unit,
+    onOpenWebsite: () -> Unit,
+    onSupport: () -> Unit
+) {
+    val navy = Color(0xFF1D3D6B)
+    val lightCard = Color(0xFFF1F3F8)
+    val green = Color(0xFF247B55)
+    val paleGreen = Color(0xFFD7F0E1)
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("O aplikacji", color = Color.White, fontWeight = FontWeight.SemiBold) },
+                navigationIcon = {
+                    TextButton(onClick = onBack) {
+                        Text("‹", color = Color.White, style = MaterialTheme.typography.headlineLarge)
+                    }
+                },
+                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                    containerColor = navy,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
+                )
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = lightCard)
+            ) {
+                Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Autor", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = navy)
+                    Text("Paweł Gębicki", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+                    Text("Niezależny developer i edukator", style = MaterialTheme.typography.bodyLarge)
+                    Button(onClick = onOpenWebsite, modifier = Modifier.fillMaxWidth(), colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = navy)) {
+                        Text("🌐  pggp.pl")
+                    }
+                }
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth().border(1.5.dp, green, RoundedCornerShape(22.dp)),
+                shape = RoundedCornerShape(22.dp),
+                colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = paleGreen)
+            ) {
+                Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("☕  Postaw mi kawę!", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = green)
+                    Text(
+    """
+    Opinia Ucznia pomaga porządkować informacje o funkcjonowaniu ucznia w szkole, dokumentować obserwacje i przygotowywać wnioski do dalszej pracy. Celem aplikacji jest wspieranie nauczycieli i specjalistów w tworzeniu rzetelnych, opartych na danych opinii.
+
+    Aplikacja rozwijana jest z myślą o praktycznym wsparciu pracy szkoły. Jeśli uznajesz ją za przydatną, możesz wesprzeć dalszy rozwój projektu. Dziękuję! 🙂
+    """.trimIndent(),
+    style = MaterialTheme.typography.bodyLarge,
+    color = Color(0xFF303632)
+)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("Mała\n5 zł", "Średnia\n10 zł", "Duża\n25 zł").forEach { amount ->
+                            OutlinedButton(
+                                onClick = onSupport,
+                                modifier = Modifier.weight(1f).height(76.dp),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = green)
+                            ) {
+                                Text(amount, textAlign = TextAlign.Center, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                    Text(
+                        "Przycisk otwiera BuyCoffee.to. Płatność odbywa się na zewnętrznej stronie.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF5B665F),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("© 2026 Paweł Gębicki · pggp.pl", textAlign = TextAlign.Center, color = Color.Gray)
+                Text("Wszelkie prawa zastrzeżone", textAlign = TextAlign.Center, color = Color.Gray)
+                Text("Wersja ${BuildConfig.VERSION_NAME}", textAlign = TextAlign.Center, color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
 fun normalizeAreaTitle(title: String): String = when {
     title.startsWith("Obszar 1.") -> "Obszar 1 - Uczenie się i stosowanie wiedzy"
     title.startsWith("Obszar 2.") -> "Obszar 2 - Ogólne zadania i obowiązki"
@@ -1030,7 +1147,7 @@ private fun SchoolAndStudentForm(draft: StudentDraft, update: (StudentDraft) -> 
         val query = schoolQuery.trim()
         val results = schools.value!!.asSequence().filter {
             it.name.contains(query, ignoreCase = true) || it.town.contains(query, ignoreCase = true) ||
-                it.municipality.contains(query, ignoreCase = true) || it.number.contains(query, ignoreCase = true)
+                    it.municipality.contains(query, ignoreCase = true) || it.number.contains(query, ignoreCase = true)
         }.take(20).toList()
         results.forEach { school ->
             Card(modifier = Modifier.fillMaxWidth().clickable {
@@ -1109,6 +1226,9 @@ private fun SummaryLine(label: String, value: String) {
         }
     }
 }
+
+
+
 
 
 
