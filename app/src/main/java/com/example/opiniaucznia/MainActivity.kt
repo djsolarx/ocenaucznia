@@ -1,4 +1,4 @@
-﻿package com.example.opiniaucznia
+package com.example.opiniaucznia
 
 import android.app.Activity
 import android.app.DatePickerDialog
@@ -104,7 +104,7 @@ private fun CheckForUpdates() {
                 !context.packageManager.canRequestPackageInstalls()
             ) {
                 downloadMessage =
-                    "Plik został pobrany. Zezwól aplikacji Opinia Ucznia na instalowanie nieznanych aplikacji, a następnie wybierz „Uruchom instalator”."
+                    "Plik zostaďż˝ pobrany. Zezwďż˝l aplikacji Opinia Ucznia na instalowanie nieznanych aplikacji, a nastďż˝pnie wybierz ďż˝Uruchom instalatorďż˝."
                 context.startActivity(
                     Intent(
                         android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
@@ -127,7 +127,7 @@ private fun CheckForUpdates() {
             }
             context.startActivity(installIntent)
         } catch (e: Exception) {
-            downloadMessage = "Nie udało się uruchomić instalatora: ${e.message ?: "nieznany błąd"}"
+            downloadMessage = "Nie udaďż˝o siďż˝ uruchomiďż˝ instalatora: ${e.message ?: "nieznany bďż˝ďż˝d"}"
         }
     }
 
@@ -167,7 +167,7 @@ private fun CheckForUpdates() {
                     val apk = obj.optString("apkUrl", "")
                     val message = obj.optString(
                         "message",
-                        "Dostępna jest nowa wersja aplikacji Opinia Ucznia."
+                        "Dostďż˝pna jest nowa wersja aplikacji Opinia Ucznia."
                     )
 
                     if (code > 0 && name.isNotBlank() && apk.startsWith("https://")) {
@@ -195,7 +195,7 @@ private fun CheckForUpdates() {
             onDismissRequest = {
                 if (!isDownloading) availableVersion = null
             },
-            title = { Text("Dostępna aktualizacja") },
+            title = { Text("Dostďż˝pna aktualizacja") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
@@ -243,7 +243,7 @@ private fun CheckForUpdates() {
 
                                         if (connection.responseCode !in 200..299) {
                                             throw java.io.IOException(
-                                                "Serwer zwrócił kod ${connection.responseCode}."
+                                                "Serwer zwrďż˝ciďż˝ kod ${connection.responseCode}."
                                             )
                                         }
 
@@ -294,7 +294,7 @@ private fun CheckForUpdates() {
                                     onFailure = { error ->
                                         isDownloading = false
                                         downloadMessage =
-                                            "Pobieranie nie powiodło się: ${error.message ?: "sprawdź połączenie z internetem"}"
+                                            "Pobieranie nie powiodďż˝o siďż˝: ${error.message ?: "sprawdďż˝ poďż˝ďż˝czenie z internetem"}"
                                     }
                                 )
                             }
@@ -303,9 +303,9 @@ private fun CheckForUpdates() {
                 ) {
                     Text(
                         when {
-                            isDownloading -> "Pobieranie…"
+                            isDownloading -> "Pobieranieďż˝"
                             downloadedApk != null -> "Uruchom instalator"
-                            else -> "Pobierz aktualizację"
+                            else -> "Pobierz aktualizacjďż˝"
                         }
                     )
                 }
@@ -315,7 +315,7 @@ private fun CheckForUpdates() {
                     enabled = !isDownloading,
                     onClick = { availableVersion = null }
                 ) {
-                    Text("Później")
+                    Text("Pďż˝niej")
                 }
             }
         )
@@ -526,6 +526,7 @@ fun OpinionApp() {
     val prefs = remember { context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) }
     val archivePrefs = remember { context.getSharedPreferences("opinia_ucznia_archive", Context.MODE_PRIVATE) }
     val assessmentStore = remember { IndicatorAssessmentStore(context) }
+    val monitoringStore = remember { MonitoringStore(context) }
     val indicators = remember { runCatching { assessmentStore.loadCatalog(context) }.getOrDefault(emptyList()) }
     var draft by remember { mutableStateOf(StudentDraft.fromJson(prefs.getString(DRAFT_KEY, null))) }
     var page by remember { mutableStateOf(-1) }
@@ -591,6 +592,12 @@ fun OpinionApp() {
         }
     }
     var activeRecordId by remember { mutableStateOf(java.util.UUID.randomUUID().toString()) }
+    var monitoringStudentId by remember { mutableStateOf("") }
+    var monitoringStudentName by remember { mutableStateOf("") }
+    var monitoringObservationSource by remember { mutableStateOf("") }
+    var monitoringSourceText by remember {
+        mutableStateOf(prefs.getString("MONITORING_SOURCE_TEXT", "") ?: "")
+    }
 
     fun update(next: StudentDraft) {
         draft = next
@@ -668,12 +675,16 @@ fun OpinionApp() {
                 put("noData", answer.noData); put("notes", answer.notes)
             }) }
         }
+        val previousRecord = (0 until array.length())
+            .mapNotNull { array.optJSONObject(it) }
+            .firstOrNull { it.optString("id") == activeRecordId }
         val record = JSONObject().apply {
             put("id", activeRecordId)
             put("name", draft.studentName.ifBlank { "UczeĹ„ bez podanego imienia i nazwiska" })
             put("school", draft.school); put("className", draft.className); put("birthDate", draft.birthDate)
             put("savedAt", java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale("pl", "PL")).format(java.util.Date()))
             put("draft", draft.toJson()); put("answers", answersJson)
+            previousRecord?.optJSONObject("monitoring")?.let { put("monitoring", it) }
         }
         val updated = JSONArray()
         var replaced = false
@@ -769,6 +780,14 @@ fun OpinionApp() {
             onSupport = {
                 runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://buycoffee.to/trustmatrix"))) }
             }
+        )
+    } else if (page == -3) {
+        MonitoringScreen(
+            studentId = monitoringStudentId,
+            studentName = monitoringStudentName,
+            observationSource = monitoringObservationSource,
+            store = monitoringStore,
+            onBack = { page = -1 }
         )
     } else if (page == -1) {
         Scaffold { padding ->
@@ -891,6 +910,7 @@ fun OpinionApp() {
                                     Text(if (showArchivedStudents) "â†© PrzywrĂłÄ‡" else "đź“¦ Archiwizuj")
                                 }
                             }
+
                             TextButton(
                                 onClick = { startTransfer("send", record.toString()) },
                                 modifier = Modifier.fillMaxWidth()
@@ -965,6 +985,38 @@ fun OpinionApp() {
                         OutlinedTextField(value = draft.conclusions, onValueChange = { update(draft.copy(conclusions = it)) }, label = { Text("Wnioski do dalszej pracy z uczniem") }, placeholder = { Text("Wpisz wnioski wynikajÄ…ce z przeprowadzonej oceny") }, modifier = Modifier.fillMaxWidth(), minLines = 5)
                         Text("MoĹĽesz przygotowaÄ‡ prompt dla dowolnego czatu AI. Przed udostÄ™pnieniem sprawdĹş treĹ›Ä‡ i usuĹ„ informacje, ktĂłre mogĹ‚yby identyfikowaÄ‡ ucznia.", style = MaterialTheme.typography.bodySmall)
                         Button(onClick = { aiPrompt = buildAiPrompt(); showAiPromptDialog = true }, modifier = Modifier.fillMaxWidth()) { Text("Przygotuj prompt dla AI") }
+                        OutlinedTextField(
+                            value = monitoringSourceText,
+                            onValueChange = { text ->
+                                monitoringSourceText = text
+                                prefs.edit().putString("MONITORING_SOURCE_TEXT", text).apply()
+                            },
+                            label = { Text("PeĹ‚na odpowiedĹş AI â€” wklej tutaj wygenerowany tekst") },
+                            placeholder = { Text("Wklej peĹ‚nÄ… odpowiedĹş AI zawierajÄ…cÄ… punkt 3: Wnioski do dalszej obserwacji") },
+                            modifier = Modifier.fillMaxWidth(),
+                            minLines = 6
+                        )
+                        Button(
+                            onClick = {
+                                val sekcja = Regex(
+                                    "(?im)^\\s*3\\s*[.)]\\s*Wnioski do dalszej obserwacji\\b[\\s\\S]*?(?=^\\s*\\d+\\s*[.)]\\s+|\\z)"
+                                ).find(monitoringSourceText)?.value?.trim()
+
+                                if (sekcja.isNullOrBlank()) {
+                                    status = "Nie znaleziono punktu 3: Wnioski do dalszej obserwacji. Wklej peĹ‚nÄ… odpowiedĹş AI."
+                                } else if (activeRecordId.isNullOrBlank()) {
+                                    status = "Najpierw zapisz lub otwĂłrz opiniÄ™ ucznia."
+                                } else {
+                                    monitoringStudentId = activeRecordId
+                                    monitoringStudentName = draft.studentName
+                                    monitoringObservationSource = sekcja
+                                    page = -3
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Monitoring ucznia")
+                        }
                         Text("Osoby opracowujÄ…ce opiniÄ™", style = MaterialTheme.typography.titleLarge)
                         OutlinedTextField(draft.homeroomTeacher, { update(draft.copy(homeroomTeacher = it)) }, label = { Text("Wychowawca klasy") }, modifier = Modifier.fillMaxWidth())
                         OutlinedTextField(draft.pedagogue, { update(draft.copy(pedagogue = it)) }, label = { Text("Pedagog / pedagog specjalny") }, modifier = Modifier.fillMaxWidth())
