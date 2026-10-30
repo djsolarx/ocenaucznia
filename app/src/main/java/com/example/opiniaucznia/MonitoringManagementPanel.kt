@@ -283,7 +283,7 @@ fun MonitoringManagementPanel(
                     else {
                         OutlinedTextField(value = draft!!.name, onValueChange = { draft = draft!!.copy(name = it) }, label = { Text("Imię i nazwisko") }, singleLine = true)
                         OutlinedTextField(value = draft!!.role, onValueChange = { draft = draft!!.copy(role = it) }, label = { Text("Rola / przedmiot / funkcja") }, singleLine = true)
-                        OutlinedTextField(value = draft!!.observationDate, onValueChange = { draft = draft!!.copy(observationDate = it) }, label = { Text("Data obserwacji") }, singleLine = true)
+                        OutlinedButton(onClick = { val calendar = Calendar.getInstance(); draft!!.observationDate.split("-").mapNotNull { it.toIntOrNull() }.takeIf { it.size == 3 }?.let { calendar.set(it[0], it[1] - 1, it[2]) }; DatePickerDialog(context, { _, y, m, d -> draft = draft!!.copy(observationDate = "%04d-%02d-%02d".format(y, m + 1, d)) }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show() }, modifier = Modifier.fillMaxWidth()) { Text("Data obserwacji: " + draft!!.observationDate.ifBlank { "wybierz z kalendarza" }) }
                         selectedPeriod.observationAreas.forEach { area ->
                             val item = draft!!.ratings.firstOrNull { it.areaId == area || it.areaName == area } ?: MonitoringRating(areaId = area, areaName = area)
                             Card(Modifier.fillMaxWidth()) {
