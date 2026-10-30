@@ -1002,16 +1002,22 @@ fun OpinionApp() {
                                     "(?im)^\\s*3\\s*[.)]\\s*Wnioski do dalszej obserwacji\\b[\\s\\S]*?(?=^\\s*\\d+\\s*[.)]\\s+|\\z)"
                                 ).find(monitoringSourceText)?.value?.trim()
 
-                                if (sekcja.isNullOrBlank()) {
-                                    status = "Nie znaleziono punktu 3: Wnioski do dalszej obserwacji. Wklej pełną odpowiedź AI."
-                                } else if (activeRecordId.isNullOrBlank()) {
-                                    status = "Najpierw zapisz lub otwórz opinię ucznia."
-                                } else {
-                                    monitoringStudentId = activeRecordId
-                                    monitoringStudentName = draft.studentName
-                                    monitoringObservationSource = sekcja
-                                    page = -3
+                                // Zapisz lub zaktualizuj rekord przed otwarciem monitoringu,
+                                // aby okresy i oceny nauczycieli miały trwałe miejsce zapisu.
+                                if (activeRecordId.isNullOrBlank()) {
+                                    activeRecordId = java.util.UUID.randomUUID().toString()
                                 }
+                                saveToArchive()
+
+                                monitoringStudentId = activeRecordId
+                                monitoringStudentName = draft.studentName
+                                monitoringObservationSource = sekcja
+                                    ?: draft.conclusions.trim().takeIf { it.isNotBlank() }
+                                    ?: monitoringSourceText.trim()
+                                if (sekcja.isNullOrBlank()) {
+                                    status = "Otworzono monitoring. Nie rozpoznano punktu 3, ale możesz dodać okres obserwacji i dane nauczycieli. Wnioski możesz uzupełnić później."
+                                }
+                                page = -3
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
