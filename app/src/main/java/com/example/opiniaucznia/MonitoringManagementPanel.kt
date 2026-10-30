@@ -65,6 +65,7 @@ fun MonitoringManagementPanel(
     var teacherDate by remember { mutableStateOf("") }
     var editingTeacherId by remember { mutableStateOf("") }
     var exportPeriod by remember { mutableStateOf<MonitoringPeriod?>(null) }
+    var exportBlankCard by remember { mutableStateOf(false) }
 
     val selectedPeriod = monitoring.periods.firstOrNull { it.id == selectedPeriodId }
         ?: monitoring.periods.firstOrNull()
@@ -83,7 +84,7 @@ fun MonitoringManagementPanel(
         val period = exportPeriod
         if (uri != null && period != null) {
             val result = runCatching {
-                context.contentResolver.openOutputStream(uri)?.use { writeMonitoringPdf(context, it, studentName, period) }
+                context.contentResolver.openOutputStream(uri)?.use { output -> if (exportBlankCard) writeMonitoringObservationCardPdf(context, output, studentName, period) else writeMonitoringPdf(context, output, studentName, period) }
                     ?: error("Nie udało się otworzyć pliku docelowego.")
             }
             status = if (result.isSuccess) "Zapisano osobny raport monitoringu w PDF."
@@ -207,9 +208,15 @@ fun MonitoringManagementPanel(
                 )
                 Button(onClick = {
                     exportPeriod = period
+                    exportBlankCard = false
                     val safe = studentName.trim().replace(Regex("[^A-Za-z0-9_-]"), "_").ifBlank { "ucznia" }
                     exportLauncher.launch("Monitoring_${safe}_${period.startDate.ifBlank { "okres" }}.pdf")
                 }, modifier = Modifier.fillMaxWidth()) { Text("Eksportuj osobny raport monitoringu do PDF") }
+                OutlinedButton(onClick = {
+                    exportPeriod = period
+                    exportBlankCard = true
+                    exportLauncher.launch("Karta_obserwacji.pdf")
+                }, modifier = Modifier.fillMaxWidth()) { Text("Eksportuj pustą kartę dla nauczyciela do PDF") }
                 OutlinedButton(onClick = {
                     val safe = studentName.trim().replace(Regex("[^A-Za-z0-9_-]"), "_").ifBlank { "ucznia" }
                     val file = File(context.cacheDir, "Monitoring_${safe}_druk.pdf")

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material3.Surface
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -391,7 +392,7 @@ $observationSource
         )
     }
     if (showManagementPanel) {
-        Dialog(onDismissRequest = { showManagementPanel = false }) {
+        Dialog(onDismissRequest = { showManagementPanel = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             Surface(modifier = Modifier.fillMaxSize()) {
                 MonitoringManagementPanel(
                     studentId = studentId,

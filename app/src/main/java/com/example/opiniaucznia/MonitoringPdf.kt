@@ -151,3 +151,100 @@ fun writeMonitoringPdf(context: Context, output: OutputStream, studentName: Stri
     }
     try { doc.writeTo(output) } finally { doc.close() }
 }
+
+
+/** Pusta karta do wydruku i ręcznego wypełnienia przez nauczyciela. */
+fun writeMonitoringObservationCardPdf(context: Context, output: OutputStream, studentName: String, period: MonitoringPeriod) {
+    val doc = PdfDocument()
+    val pageW = 595
+    val pageH = 842
+    val margin = 36f
+    val contentW = pageW - margin * 2
+    val bottom = pageH - 40f
+    val ink = Color.rgb(32, 51, 77)
+    val navy = Color.rgb(25, 51, 83)
+    val muted = Color.rgb(95, 108, 123)
+    val border = Color.rgb(190, 202, 214)
+    val pale = Color.rgb(242, 246, 250)
+    val font = runCatching { Typeface.createFromAsset(context.assets, "fonts/AvenirLTProBook.otf") }
+        .getOrElse { Typeface.create("sans-serif", Typeface.NORMAL) }
+    val bold = runCatching { Typeface.createFromAsset(context.assets, "fonts/AvenirLTProMedium.otf") }
+        .getOrElse { Typeface.create("sans-serif-medium", Typeface.NORMAL) }
+    fun p(size: Float, color: Int = ink, heavy: Boolean = false) = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textSize = size; this.color = color; typeface = if (heavy) bold else font
+    }
+    var pageNo = 0
+    var page: PdfDocument.Page? = null
+    var canvas: Canvas? = null
+    var y = 26f
+    fun startPage() {
+        if (page != null) {
+            canvas!!.drawLine(margin, bottom, pageW - margin, bottom, p(7f, border))
+            canvas!!.drawText("Karta obserwacji • dokument poufny", margin, pageH - 17f, p(7f, muted))
+            doc.finishPage(page!!)
+        }
+        pageNo++
+        page = doc.startPage(PdfDocument.PageInfo.Builder(pageW, pageH, pageNo).create())
+        canvas = page!!.canvas
+        canvas!!.drawColor(Color.WHITE)
+        canvas!!.drawRect(0f, 0f, pageW.toFloat(), 5f, p(5f, navy))
+        y = 24f
+    }
+    fun wrap(text: String, paint: Paint, width: Float): List<String> {
+        val lines = mutableListOf<String>()
+        text.split(Regex("\\s+")).filter { it.isNotBlank() }.forEach { word ->
+            if (lines.isEmpty()) lines.add(word)
+            else {
+                val candidate = lines.last() + " " + word
+                if (paint.measureText(candidate) <= width) lines[lines.lastIndex] = candidate else lines.add(word)
+            }
+        }
+        return lines.ifEmpty { listOf("") }
+    }
+    fun ensure(height: Float) { if (y + height > bottom - 8f) startPage() }
+    fun text(value: String, size: Float = 9f, color: Int = ink, heavy: Boolean = false, gap: Float = 3f) {
+        val paint = p(size, color, heavy)
+        val lines = wrap(value, paint, contentW)
+        val lineH = size * 1.35f
+        ensure(lines.size * lineH + gap)
+        lines.forEach { canvas!!.drawText(it, margin, y + size, paint); y += lineH }
+        y += gap
+    }
+    startPage()
+    text("KARTA OBSERWACJI UCZNIA", 15f, navy, true, 4f)
+    text("Wypełnia nauczyciel na podstawie obserwacji ucznia w codziennych sytuacjach szkolnych.", 8.5f, muted, false, 8f)
+    text("Uczeń: " + studentName.ifBlank { "........................................................" }, 10f, ink, true)
+    text("Okres: " + period.title + " (" + period.startDate + " – " + period.endDate + ")")
+    text("Nauczyciel: ................................................................................................................")
+    text("Rola / przedmiot: .....................................................   Data: ................................", gap = 8f)
+    text("Instrukcja: zaznacz jedną ocenę dla każdego obszaru. Jeśli nie było możliwości obserwacji, zaznacz „Nie obserwowano”. Dopisz konkretny przykład.", 8.3f, ink, false, 8f)
+    period.observationAreas.forEachIndexed { index, area ->
+        val areaPaint = p(9f, navy, true)
+        val areaLines = wrap((index + 1).toString() + ". " + area, areaPaint, contentW - 16f)
+        val cardH = 65f + (areaLines.size - 1) * 11f
+        ensure(cardH + 5f)
+        val rect = RectF(margin, y, pageW - margin, y + cardH)
+        canvas!!.drawRoundRect(rect, 4f, 4f, p(9f, Color.WHITE))
+        canvas!!.drawRoundRect(rect, 4f, 4f, p(9f, border).apply { style = Paint.Style.STROKE; strokeWidth = 0.7f })
+        var ty = y + 14f
+        areaLines.forEach { line -> canvas!!.drawText(line, margin + 9f, ty, areaPaint); ty += 11f }
+        ty += 2f
+        canvas!!.drawText("Ocena:   1 [  ]   2 [  ]   3 [  ]   4 [  ]   5 [  ]   Nie obserwowano [  ]", margin + 9f, ty + 9f, p(8.3f, ink))
+        ty += 18f
+        canvas!!.drawText("Komentarz / przykład:", margin + 9f, ty + 8f, p(7.7f, muted))
+        canvas!!.drawLine(margin + 9f, ty + 20f, pageW - margin - 9f, ty + 20f, p(7f, border))
+        canvas!!.drawLine(margin + 9f, ty + 31f, pageW - margin - 9f, ty + 31f, p(7f, border))
+        y += cardH + 5f
+    }
+    ensure(55f)
+    text("Komentarz ogólny:", 9f, navy, true, 2f)
+    repeat(3) { canvas!!.drawLine(margin, y + it * 13f, pageW - margin, y + it * 13f, p(7f, border)) }
+    y += 43f
+    text("Podpis nauczyciela: ........................................................................", 8.5f, ink, false, 3f)
+    if (page != null) {
+        canvas!!.drawLine(margin, bottom, pageW - margin, bottom, p(7f, border))
+        canvas!!.drawText("Karta obserwacji • dokument poufny", margin, pageH - 17f, p(7f, muted))
+        doc.finishPage(page!!)
+    }
+    try { doc.writeTo(output) } finally { doc.close() }
+}
