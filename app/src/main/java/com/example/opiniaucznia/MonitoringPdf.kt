@@ -181,7 +181,8 @@ fun writeMonitoringObservationCardPdf(context: Context, output: OutputStream, st
     fun startPage() {
         if (page != null) {
             canvas!!.drawLine(margin, bottom, pageW - margin, bottom, p(7f, border))
-            canvas!!.drawText("Karta obserwacji • dokument poufny", margin, pageH - 17f, p(7f, muted))
+            canvas!!.drawText("Karta Monitoringu Ucznia | Gabinet Psychologiczny Paweł Gębicki | www.pggp.pl | 2026 | Wersja " + BuildConfig.VERSION_NAME, margin, pageH - 27f, p(5.5f, muted))
+            canvas!!.drawText("Wygenerowano: " + SimpleDateFormat("dd.MM.yyyy", Locale("pl", "PL")).format(Date()) + " r. | Dokument poufny", margin, pageH - 16f, p(6f, muted))
             doc.finishPage(page!!)
         }
         pageNo++
