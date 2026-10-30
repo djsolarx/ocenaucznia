@@ -1,6 +1,8 @@
 package com.example.opiniaucznia
 
 import android.net.Uri
+import android.app.DatePickerDialog
+import java.util.Calendar
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -241,7 +243,7 @@ fun MonitoringManagementPanel(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(value = teacherName, onValueChange = { teacherName = it }, label = { Text("Imię i nazwisko") }, singleLine = true)
                     OutlinedTextField(value = teacherRole, onValueChange = { teacherRole = it }, label = { Text("Rola / przedmiot / funkcja") }, singleLine = true)
-                    OutlinedTextField(value = teacherDate, onValueChange = { teacherDate = it }, label = { Text("Data obserwacji") }, singleLine = true)
+                    OutlinedButton(onClick = { val calendar = Calendar.getInstance(); teacherDate.split("-").mapNotNull { it.toIntOrNull() }.takeIf { it.size == 3 }?.let { calendar.set(it[0], it[1] - 1, it[2]) }; DatePickerDialog(context, { _, y, m, d -> teacherDate = "%04d-%02d-%02d".format(y, m + 1, d) }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show() }, modifier = Modifier.fillMaxWidth()) { Text("Data obserwacji: " + teacherDate.ifBlank { "wybierz z kalendarza" }) }
                 }
             },
             confirmButton = {
@@ -287,18 +289,21 @@ fun MonitoringManagementPanel(
                             Card(Modifier.fillMaxWidth()) {
                                 Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Text(area, style = MaterialTheme.typography.titleSmall)
-                                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(1.dp)) {
+                                    Text("Ocena (1–5):", style = MaterialTheme.typography.bodySmall)
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                         (1..5).forEach { score ->
-                                            TextButton(onClick = {
+                                            OutlinedButton(onClick = {
                                                 val rating = item.copy(rating = score, notObserved = false)
                                                 draft = draft!!.copy(ratings = draft!!.ratings.filterNot { it.areaId == area || it.areaName == area } + rating)
-                                            }) { Text(if (item.rating == score) "[$score]" else score.toString()) }
+                                            }, modifier = Modifier.weight(1f), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 0.dp, vertical = 4.dp)) {
+                                                Text(if (item.rating == score) "✓$score" else score.toString())
+                                            }
                                         }
-                                        TextButton(onClick = {
-                                            val rating = item.copy(rating = null, notObserved = true)
-                                            draft = draft!!.copy(ratings = draft!!.ratings.filterNot { it.areaId == area || it.areaName == area } + rating)
-                                        }) { Text(if (item.notObserved) "[Nie obserwowano]" else "Nie obserwowano") }
                                     }
+                                    OutlinedButton(onClick = {
+                                        val rating = item.copy(rating = null, notObserved = true)
+                                        draft = draft!!.copy(ratings = draft!!.ratings.filterNot { it.areaId == area || it.areaName == area } + rating)
+                                    }, modifier = Modifier.fillMaxWidth()) { Text(if (item.notObserved) "✓ Nie obserwowano" else "Nie obserwowano") }
                                     OutlinedTextField(value = item.comment, onValueChange = { comment ->
                                         val rating = item.copy(comment = comment)
                                         draft = draft!!.copy(ratings = draft!!.ratings.filterNot { it.areaId == area || it.areaName == area } + rating)
