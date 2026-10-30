@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.window.Dialog
+import androidx.compose.material3.Surface
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -48,6 +50,7 @@ fun MonitoringScreen(
     var aiMonitoringJson by remember { mutableStateOf("") }
     var importedAreas by remember { mutableStateOf<List<String>>(emptyList()) }
     var selectedPeriodId by remember { mutableStateOf("") }
+    var showManagementPanel by remember { mutableStateOf(false) }
     var validatedCardJson by remember { mutableStateOf("") }
 
     val monitoringPrompt = """
@@ -287,6 +290,10 @@ $observationSource
                 }
             }
 
+            Button(onClick = { showManagementPanel = true }, modifier = Modifier.fillMaxWidth()) {
+                Text("Otwórz monitoring: oceny, średnie i raport")
+            }
+
             if (status.isNotBlank()) {
                 Text(status, style = MaterialTheme.typography.bodyMedium)
             }
@@ -383,4 +390,19 @@ $observationSource
             }
         )
     }
+    if (showManagementPanel) {
+        Dialog(onDismissRequest = { showManagementPanel = false }) {
+            Surface(modifier = Modifier.fillMaxSize()) {
+                MonitoringManagementPanel(
+                    studentId = studentId,
+                    studentName = studentName,
+                    store = store,
+                    initialMonitoring = monitoring,
+                    onMonitoringChanged = { monitoring = it },
+                    onClose = { showManagementPanel = false }
+                )
+            }
+        }
+    }
+
 }

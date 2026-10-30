@@ -471,7 +471,7 @@ private fun parseCsvLine(line: String, delimiter: Char): List<String> {
     return result
 }
 
-private fun printPdfFile(context: Context, file: File, jobName: String) {
+fun printPdfFile(context: Context, file: File, jobName: String) {
     val printManager = context.getSystemService(Context.PRINT_SERVICE) as PrintManager
     printManager.print(jobName, object : PrintDocumentAdapter() {
         override fun onLayout(
