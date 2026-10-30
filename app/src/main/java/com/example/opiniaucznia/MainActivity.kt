@@ -595,9 +595,6 @@ fun OpinionApp() {
     var monitoringStudentId by remember { mutableStateOf("") }
     var monitoringStudentName by remember { mutableStateOf("") }
     var monitoringObservationSource by remember { mutableStateOf("") }
-    var monitoringSourceText by remember {
-        mutableStateOf(prefs.getString("MONITORING_SOURCE_TEXT", "") ?: "")
-    }
 
     fun update(next: StudentDraft) {
         draft = next
