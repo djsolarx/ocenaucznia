@@ -24,6 +24,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.unit.dp
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -53,6 +60,8 @@ fun MonitoringScreen(
     var selectedPeriodId by remember { mutableStateOf("") }
     var showManagementPanel by remember { mutableStateOf(false) }
     var validatedCardJson by remember { mutableStateOf("") }
+    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
 
     val monitoringPrompt = """
 Przygotuj kartę monitorowania ucznia na podstawie poniższych wniosków do dalszej obserwacji.
@@ -304,22 +313,65 @@ $observationSource
     if (showPromptDialog) {
         AlertDialog(
             onDismissRequest = { showPromptDialog = false },
-            title = { Text("Prompt do osobnego czatu AI") },
+            title = { Text("Prompt do czatu AI") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Skopiuj prompt poniżej i wklej go do osobnego czatu AI. Następnie skopiuj odpowiedź JSON z powrotem do pola na ekranie monitoringu.")
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 420.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("Skopiuj prompt albo udostępnij go do wybranej aplikacji AI. Po uzyskaniu odpowiedzi JSON wróć tutaj i wklej ją do pola na ekranie monitoringu.")
                     OutlinedTextField(
                         value = monitoringPrompt,
                         onValueChange = {},
                         readOnly = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 10
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(260.dp),
+                        minLines = 8
                     )
                 }
             },
             confirmButton = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(
+                        onClick = {
+                            clipboardManager.setText(AnnotatedString(monitoringPrompt))
+                            status = "Prompt skopiowano. Wklej go do wybranego czatu AI."
+                            showPromptDialog = false
+                        }
+                    ) {
+                        Text("Kopiuj prompt")
+                    }
+                    TextButton(
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, monitoringPrompt)
+                                putExtra(Intent.EXTRA_TITLE, "Prompt do karty monitorowania ucznia")
+                            }
+                            runCatching {
+                                context.startActivity(
+                                    Intent.createChooser(intent, "Udostępnij prompt do czatu AI")
+                                )
+                            }.onFailure {
+                                status = "Nie udało się otworzyć menu udostępniania. Użyj opcji „Kopiuj prompt”."
+                            }
+                            showPromptDialog = false
+                        }
+                    ) {
+                        Text("Udostępnij do czatu AI")
+                    }
+                    TextButton(onClick = { showPromptDialog = false }) {
+                        Text("Zamknij")
+                    }
+                }
+            },
+            dismissButton = {
                 TextButton(onClick = { showPromptDialog = false }) {
-                    Text("Zamknij")
+                    Text("Anuluj")
                 }
             }
         )
