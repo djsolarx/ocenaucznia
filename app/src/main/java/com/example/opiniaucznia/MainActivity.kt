@@ -985,23 +985,8 @@ fun OpinionApp() {
                         OutlinedTextField(value = draft.conclusions, onValueChange = { update(draft.copy(conclusions = it)) }, label = { Text("Wnioski do dalszej pracy z uczniem") }, placeholder = { Text("Wpisz wnioski wynikające z przeprowadzonej oceny") }, modifier = Modifier.fillMaxWidth(), minLines = 5)
                         Text("Możesz przygotować prompt dla dowolnego czatu AI. Przed udostępnieniem sprawdź treść i usuń informacje, które mogłyby identyfikować ucznia.", style = MaterialTheme.typography.bodySmall)
                         Button(onClick = { aiPrompt = buildAiPrompt(); showAiPromptDialog = true }, modifier = Modifier.fillMaxWidth()) { Text("Przygotuj prompt dla AI") }
-                        OutlinedTextField(
-                            value = monitoringSourceText,
-                            onValueChange = { text ->
-                                monitoringSourceText = text
-                                prefs.edit().putString("MONITORING_SOURCE_TEXT", text).apply()
-                            },
-                            label = { Text("Pełna odpowiedź AI — wklej tutaj wygenerowany tekst") },
-                            placeholder = { Text("Wklej pełną odpowiedź AI zawierającą punkt 3: Wnioski do dalszej obserwacji") },
-                            modifier = Modifier.fillMaxWidth(),
-                            minLines = 6
-                        )
                         Button(
                             onClick = {
-                                val sekcja = Regex(
-                                    "(?im)^\\s*3\\s*[.)]\\s*Wnioski do dalszej obserwacji\\b[\\s\\S]*?(?=^\\s*\\d+\\s*[.)]\\s+|\\z)"
-                                ).find(monitoringSourceText)?.value?.trim()
-
                                 // Zapisz lub zaktualizuj rekord przed otwarciem monitoringu,
                                 // aby okresy i oceny nauczycieli miały trwałe miejsce zapisu.
                                 if (activeRecordId.isNullOrBlank()) {
@@ -1011,11 +996,9 @@ fun OpinionApp() {
 
                                 monitoringStudentId = activeRecordId
                                 monitoringStudentName = draft.studentName
-                                monitoringObservationSource = sekcja
-                                    ?: draft.conclusions.trim().takeIf { it.isNotBlank() }
-                                    ?: monitoringSourceText.trim()
-                                if (sekcja.isNullOrBlank()) {
-                                    status = "Otworzono monitoring. Nie rozpoznano punktu 3, ale możesz dodać okres obserwacji i dane nauczycieli. Wnioski możesz uzupełnić później."
+                                monitoringObservationSource = draft.conclusions.trim()
+                                if (monitoringObservationSource.isBlank()) {
+                                    status = "Otworzono monitoring. Uzupełnij wnioski do dalszej pracy z uczniem, aby przygotować prompt do monitorowania."
                                 }
                                 page = -3
                             },
