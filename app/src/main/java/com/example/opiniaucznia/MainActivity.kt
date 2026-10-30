@@ -787,7 +787,7 @@ fun OpinionApp() {
             studentName = monitoringStudentName,
             observationSource = monitoringObservationSource,
             store = monitoringStore,
-            onBack = { page = -1 }
+            onBack = { page = conclusionsPage }
         )
     } else if (page == -1) {
         Scaffold { padding ->
