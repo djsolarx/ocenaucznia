@@ -751,7 +751,7 @@ fun OpinionApp() {
     val indicatorIndex = page - firstIndicatorPage
     val pageTitle = when {
         page == 0 -> "Dane szkoły i ucznia"
-        page == 1 -> "źródła informacji"
+        page == 1 -> "Źródła informacji"
         isIndicatorPage -> "Ocena wskaźnika ${indicatorIndex + 1} z ${indicators.size}"
         page == conclusionsPage -> "Wnioski do dalszej pracy z uczniem"
         page == summaryPage -> "Podsumowanie"
@@ -795,7 +795,7 @@ fun OpinionApp() {
                 Text("OPINIA UCZNIA", style = MaterialTheme.typography.labelLarge)
                 Text("Opinia o funkcjonowaniu ucznia w szkole", style = MaterialTheme.typography.headlineMedium)
                 Text("Wypełniaj kolejne sekcje. Dane i oceny są zapisywane lokalnie na urządzeniu.")
-                Button(onClick = { page = 0 }, modifier = Modifier.fillMaxWidth()) { Text("Rozpocznij / kontynuuj bieťącą opinię") }
+                Button(onClick = { page = 0 }, modifier = Modifier.fillMaxWidth()) { Text("Rozpocznij / kontynuuj bieżącą opinię") }
                 OutlinedButton(onClick = {
                     activeRecordId = java.util.UUID.randomUUID().toString()
                     draft = StudentDraft()
@@ -810,7 +810,7 @@ fun OpinionApp() {
                 ) { Text("O aplikacji") }
                 HorizontalDivider()
                 Text("Baza uczniów", style = MaterialTheme.typography.titleLarge)
-                Text("Uczniów moťna archiwizować bez usuwania ich opinii.", style = MaterialTheme.typography.bodyMedium)
+                Text("Uczniów można archiwizować bez usuwania ich opinii.", style = MaterialTheme.typography.bodyMedium)
                 OutlinedButton(
                     onClick = { startTransfer("receive") },
                     modifier = Modifier.fillMaxWidth()
@@ -857,7 +857,7 @@ fun OpinionApp() {
                         if (showArchivedStudents)
                             "Archiwum jest puste."
                         else
-                            "Brak aktywnych uczniów. Moťesz rozpocząć nową opinię lub sprawdzić archiwum."
+                            "Brak aktywnych uczniów. Możesz rozpocząć nową opinię lub sprawdzić archiwum."
                     )
                 }
 
@@ -878,7 +878,7 @@ fun OpinionApp() {
                                     record.optString("className").let {
                                         if (it.isNotBlank()) "kl. $it" else ""
                                     }
-                                ).filter { it.isNotBlank() }.joinToString("   ")
+                                ).filter { it.isNotBlank() }.joinToString(" • ")
                             )
 
                             Text(
@@ -926,7 +926,7 @@ fun OpinionApp() {
                         text = {
                             Text(
                                 "Czy na pewno przenieść ucznia „${pendingArchiveName}” do archiwum? " +
-                                        "Opinia nie zostanie usunięta i będzie moťna ją później przywrócić."
+                                        "Opinia nie zostanie usunięta i będzie można ją później przywrócić."
                             )
                         },
                         confirmButton = {
@@ -976,14 +976,14 @@ fun OpinionApp() {
                 when (page) {
                     0 -> SchoolAndStudentForm(draft = draft, update = ::update)
                     1 -> {
-                        Text("źródła informacji", style = MaterialTheme.typography.titleLarge)
+                        Text("Źródła informacji", style = MaterialTheme.typography.titleLarge)
                         Text("Zaznacz wszystkie źródła wykorzystane przy przygotowaniu opinii.")
                         SourceCheckboxes(draft.sources) { update(draft.copy(sources = it)) }
                     }
                     conclusionsPage -> {
-                        Text("Naleťy wskazać wnioski dotyczące dalszej pracy mające na celu poprawę funkcjonowania ucznia.")
+                        Text("Należy wskazać wnioski dotyczące dalszej pracy mające na celu poprawę funkcjonowania ucznia.")
                         OutlinedTextField(value = draft.conclusions, onValueChange = { update(draft.copy(conclusions = it)) }, label = { Text("Wnioski do dalszej pracy z uczniem") }, placeholder = { Text("Wpisz wnioski wynikające z przeprowadzonej oceny") }, modifier = Modifier.fillMaxWidth(), minLines = 5)
-                        Text("Moťesz przygotować prompt dla dowolnego czatu AI. Przed udostępnieniem sprawdź treść i usuń informacje, które mogłyby identyfikować ucznia.", style = MaterialTheme.typography.bodySmall)
+                        Text("Możesz przygotować prompt dla dowolnego czatu AI. Przed udostępnieniem sprawdź treść i usuń informacje, które mogłyby identyfikować ucznia.", style = MaterialTheme.typography.bodySmall)
                         Button(onClick = { aiPrompt = buildAiPrompt(); showAiPromptDialog = true }, modifier = Modifier.fillMaxWidth()) { Text("Przygotuj prompt dla AI") }
                         OutlinedTextField(
                             value = monitoringSourceText,
@@ -1030,7 +1030,7 @@ fun OpinionApp() {
                         SummaryLine("Uczeń", draft.studentName); SummaryLine("Data urodzenia", draft.birthDate)
                         SummaryLine("Klasa", draft.className); SummaryLine("Rok szkolny", draft.schoolYear)
                         SummaryLine("Okres obserwacji", listOf(draft.observationStart, draft.observationEnd).filter { it.isNotBlank() }.joinToString(" – "))
-                        SummaryLine("źródła informacji", draft.sources.joinToString("\n") { "  $it" })
+                        SummaryLine("Źródła informacji", draft.sources.joinToString("\n") { "• $it" })
                         val answers = assessmentStore.getAllSavedAnswers()
                         Text("Obszar A", style = MaterialTheme.typography.titleLarge)
                         Text("Aktywność i uczestniczenie ucznia zgodnie z obszarami ICF (Międzynarodowej Klasyfikacji Funkcjonowania, Niepełnosprawności i Zdrowia)")
@@ -1196,7 +1196,7 @@ private fun AboutAppScreen(
                 Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Autor", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = navy)
                     Text("Paweł Gębicki", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-                    Text("Niezaleťny developer i edukator", style = MaterialTheme.typography.bodyLarge)
+                    Text("Niezależny developer i edukator", style = MaterialTheme.typography.bodyLarge)
                     Button(onClick = onOpenWebsite, modifier = Modifier.fillMaxWidth(), colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = navy)) {
                         Text("🌐  pggp.pl")
                     }
@@ -1214,13 +1214,13 @@ private fun AboutAppScreen(
     """
     Opinia Ucznia pomaga porządkować informacje o funkcjonowaniu ucznia w szkole, dokumentować obserwacje i przygotowywać wnioski do dalszej pracy. Celem aplikacji jest wspieranie nauczycieli i specjalistów w tworzeniu rzetelnych, opartych na danych opinii.
 
-    Aplikacja rozwijana jest z myślą o praktycznym wsparciu pracy szkoły. Jeśli uznajesz ją za przydatną, moťesz wesprzeć dalszy rozwój projektu. Dziękuję! 🙂
+    Aplikacja rozwijana jest z myślą o praktycznym wsparciu pracy szkoły. Jeśli uznajesz ją za przydatną, możesz wesprzeć dalszy rozwój projektu. Dziękuję! 🙂
     """.trimIndent(),
     style = MaterialTheme.typography.bodyLarge,
     color = Color(0xFF303632)
 )
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("Mała\n5 zł", "Średnia\n10 zł", "Duťa\n25 zł").forEach { amount ->
+                        listOf("Mała\n5 zł", "Średnia\n10 zł", "Duża\n25 zł").forEach { amount ->
                             OutlinedButton(
                                 onClick = onSupport,
                                 modifier = Modifier.weight(1f).height(76.dp),
@@ -1243,7 +1243,7 @@ private fun AboutAppScreen(
 
             Column(Modifier.fillMaxWidth(), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("© 2026 Paweł Gębicki · pggp.pl", textAlign = TextAlign.Center, color = Color.Gray)
-                Text("Wszelkie prawa zastrzeťone", textAlign = TextAlign.Center, color = Color.Gray)
+                Text("Wszelkie prawa zastrzeżone", textAlign = TextAlign.Center, color = Color.Gray)
                 Text("Wersja ${BuildConfig.VERSION_NAME}", textAlign = TextAlign.Center, color = Color.Gray, style = MaterialTheme.typography.bodySmall)
             }
         }
@@ -1257,7 +1257,7 @@ fun normalizeAreaTitle(title: String): String = when {
     title.startsWith("Obszar 4.") -> "Obszar 4 - Motoryka, poruszanie się, w tym mobilność i aktywność manualna"
     title.startsWith("Obszar 5.") -> "Obszar 5 - Dbanie o siebie, samoobsługa i samodzielność"
     title.startsWith("Obszar 6.") -> "Obszar 6 - Życie domowe"
-    title.startsWith("Obszar 7.") -> "Obszar 7 - Wzajemne kontakty i związki międzyludzkie, ťycie w społeczności szkolnej i lokalnej"
+    title.startsWith("Obszar 7.") -> "Obszar 7 - Wzajemne kontakty i związki międzyludzkie, życie w społeczności szkolnej i lokalnej"
     title.startsWith("Część B.") -> "Część B - Zakres i rodzaj trudności w realizacji programów nauczania"
     title.startsWith("Obszar C.") -> "Obszar C - Mocne strony i uzdolnienia ucznia"
     else -> title
@@ -1340,8 +1340,8 @@ private fun SchoolAndStudentForm(draft: StudentDraft, update: (StudentDraft) -> 
             }) {
                 Column(Modifier.padding(12.dp)) {
                     Text(school.name, style = MaterialTheme.typography.titleSmall)
-                    Text("${school.town}${if (school.address.isNotBlank()) "   ${school.address}" else ""}")
-                    Text("RSPO: ${school.number}   ${school.type}", style = MaterialTheme.typography.bodySmall)
+                    Text("${school.town}${if (school.address.isNotBlank()) " • ${school.address}" else ""}")
+                    Text("RSPO: ${school.number} • ${school.type}", style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
@@ -1395,7 +1395,7 @@ private fun SchoolAndStudentForm(draft: StudentDraft, update: (StudentDraft) -> 
             val chosen = "%02d.%02d.%04d".format(d, m + 1, y)
             fun key(s: String): Int = s.split(".").mapNotNull { it.toIntOrNull() }.let { if (it.size == 3) it[2]*10000+it[1]*100+it[0] else 0 }
             if (draft.observationStart.isBlank() || key(chosen) >= key(draft.observationStart)) update(draft.copy(observationEnd = chosen))
-            else android.widget.Toast.makeText(context, "Data zakończenia nie moťe być wcześniejsza niť data rozpoczęcia.", android.widget.Toast.LENGTH_LONG).show()
+            else android.widget.Toast.makeText(context, "Data zakończenia nie może być wcześniejsza niż data rozpoczęcia.", android.widget.Toast.LENGTH_LONG).show()
         }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
     }, modifier = Modifier.fillMaxWidth()) { Text(if (draft.observationEnd.isBlank()) "Wybierz datę zakończenia" else "Do: ${draft.observationEnd}") }
 }
