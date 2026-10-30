@@ -111,6 +111,7 @@ $observationSource
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -276,14 +277,10 @@ $observationSource
             if (monitoring.periods.isEmpty()) {
                 Text("Nie dodano jeszcze żadnych okresów obserwacji.")
             } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
+                Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(
-                        items = monitoring.periods,
-                        key = { it.id }
-                    ) { period ->
+                    monitoring.periods.forEach { period ->
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(
                                 modifier = Modifier.padding(12.dp),
