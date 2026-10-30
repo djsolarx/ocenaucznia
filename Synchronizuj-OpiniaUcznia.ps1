@@ -73,6 +73,7 @@ $Excluded = @()
 foreach ($File in $AllChanged) {
     $IsAllowed = (
         $File -eq "Synchronizuj-OpiniaUcznia.ps1" -or
+        $File -eq "Synchronizuj-OpiniaUcznia.ps1" -or
         $File -eq "app/build.gradle.kts" -or
         $File -eq "app/src/main/AndroidManifest.xml" -or
         $File -match '^app/src/main/java/com/example/opiniaucznia/[^/]+\.kt$'
