@@ -1,6 +1,8 @@
 package com.example.opiniaucznia
 
 import android.content.Intent
+import android.app.DatePickerDialog
+import java.util.Calendar
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -26,6 +28,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
@@ -52,6 +55,7 @@ fun MonitoringScreen(
         mutableStateOf(store.load(studentId))
     }
     var showAddDialog by remember { mutableStateOf(false) }
+    var periodToDelete by remember { mutableStateOf<MonitoringPeriod?>(null) }
     var title by remember { mutableStateOf("") }
     var startDate by remember { mutableStateOf("") }
     var endDate by remember { mutableStateOf("") }
@@ -134,7 +138,10 @@ $observationSource
             Button(
                 onClick = { showPromptDialog = true },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = observationSource.isNotBlank()
+                enabled = observationSource.isNotBlank(),
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF187A72), contentColor = Color.White
+                )
             ) {
                 Text("Przygotuj prompt dla AI")
             }
@@ -293,11 +300,17 @@ $observationSource
                                 Text("Od: ${period.startDate.ifBlank { "nie podano" }}")
                                 Text("Do: ${period.endDate.ifBlank { "nie podano" }}")
                                 Text("Nauczyciele: ${period.teachers.size}")
+                                OutlinedButton(onClick = { periodToDelete = period }, modifier = Modifier.fillMaxWidth()) {
+                                    Text("Usuń okres obserwacji")
+                                }
                             }
                         }
                     }
                 }
             }
+
+            Text("Program Karta Monitoringu Ucznia na licencji freeware | Gabinet Psychologiczny Paweł Gębicki | www.pggp.pl | 2026 | Wersja programu: ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Wygenerowano: ${SimpleDateFormat("dd.MM.yyyy", Locale("pl", "PL")).format(Date())} r. • Dokument poufny", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
             Button(onClick = { showManagementPanel = true }, modifier = Modifier.fillMaxWidth()) {
                 Text("Otwórz monitoring: oceny, średnie i raport")
@@ -307,6 +320,15 @@ $observationSource
                 Text(status, style = MaterialTheme.typography.bodyMedium)
             }
         }
+    }
+
+    if (periodToDelete != null) {
+        val target = periodToDelete!!
+        AlertDialog(onDismissRequest = { periodToDelete = null }, title = { Text("Usunąć okres obserwacji?") }, text = { Text("Okres „${target.title}” oraz zapisane w nim oceny i komentarze zostaną usunięte. Tej operacji nie można cofnąć.") }, confirmButton = { Button(onClick = {
+            val updated = monitoring.copy(periods = monitoring.periods.filterNot { it.id == target.id })
+            if (store.save(studentId, updated)) { monitoring = updated; status = "Usunięto okres obserwacji: ${target.title}."; if (selectedPeriodId == target.id) selectedPeriodId = "" } else status = "Nie udało się usunąć okresu obserwacji."
+            periodToDelete = null
+        }) { Text("Usuń") } }, dismissButton = { TextButton(onClick = { periodToDelete = null }) { Text("Anuluj") } })
     }
 
     if (showPromptDialog) {
@@ -388,18 +410,16 @@ $observationSource
                         label = { Text("Nazwa okresu") },
                         singleLine = true
                     )
-                    OutlinedTextField(
-                        value = startDate,
-                        onValueChange = { startDate = it },
-                        label = { Text("Data rozpoczęcia (RRRR-MM-DD)") },
-                        singleLine = true
-                    )
-                    OutlinedTextField(
-                        value = endDate,
-                        onValueChange = { endDate = it },
-                        label = { Text("Data zakończenia (RRRR-MM-DD)") },
-                        singleLine = true
-                    )
+                    OutlinedButton(onClick = {
+                        val calendar = Calendar.getInstance()
+                        startDate.split("-").mapNotNull { it.toIntOrNull() }.takeIf { it.size == 3 }?.let { calendar.set(it[0], it[1] - 1, it[2]) }
+                        DatePickerDialog(context, { _, year, month, day -> startDate = "%04d-%02d-%02d".format(year, month + 1, day) }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show()
+                    }, modifier = Modifier.fillMaxWidth()) { Text("Data rozpoczęcia: ${startDate.ifBlank { "wybierz z kalendarza" }}") }
+                    OutlinedButton(onClick = {
+                        val calendar = Calendar.getInstance()
+                        endDate.split("-").mapNotNull { it.toIntOrNull() }.takeIf { it.size == 3 }?.let { calendar.set(it[0], it[1] - 1, it[2]) }
+                        DatePickerDialog(context, { _, year, month, day -> endDate = "%04d-%02d-%02d".format(year, month + 1, day) }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show()
+                    }, modifier = Modifier.fillMaxWidth()) { Text("Data zakończenia: ${endDate.ifBlank { "wybierz z kalendarza" }}") }
                 }
             },
             confirmButton = {
