@@ -77,7 +77,7 @@ import java.io.InputStreamReader
 import java.util.Calendar
 
 
-// Informacje o wersji dostÄ™pnej w repozytorium.
+// Informacje o wersji dostępnej w repozytorium.
 private data class RemoteAppVersion(
     val versionCode: Int,
     val versionName: String,
@@ -104,7 +104,7 @@ private fun CheckForUpdates() {
                 !context.packageManager.canRequestPackageInstalls()
             ) {
                 downloadMessage =
-                    "Plik zostaďż˝ pobrany. Zezwďż˝l aplikacji Opinia Ucznia na instalowanie nieznanych aplikacji, a nastďż˝pnie wybierz ďż˝Uruchom instalatorďż˝."
+                    "Plik został pobrany. Zezwól aplikacji Opinia Ucznia na instalowanie nieznanych aplikacji, a następnie wybierz „Uruchom instalator”."
                 context.startActivity(
                     Intent(
                         android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
@@ -127,7 +127,7 @@ private fun CheckForUpdates() {
             }
             context.startActivity(installIntent)
         } catch (e: Exception) {
-            downloadMessage = "Nie udaďż˝o siďż˝ uruchomiďż˝ instalatora: ${e.message ?: "nieznany bďż˝ďż˝d"}"
+            downloadMessage = "Nie udało się uruchomić instalatora: ${e.message ?: "nieznany błąd"}"
         }
     }
 
@@ -167,7 +167,7 @@ private fun CheckForUpdates() {
                     val apk = obj.optString("apkUrl", "")
                     val message = obj.optString(
                         "message",
-                        "Dostďż˝pna jest nowa wersja aplikacji Opinia Ucznia."
+                        "Dostępna jest nowa wersja aplikacji Opinia Ucznia."
                     )
 
                     if (code > 0 && name.isNotBlank() && apk.startsWith("https://")) {
@@ -195,7 +195,7 @@ private fun CheckForUpdates() {
             onDismissRequest = {
                 if (!isDownloading) availableVersion = null
             },
-            title = { Text("Dostďż˝pna aktualizacja") },
+            title = { Text("Dostępna aktualizacja") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
@@ -243,7 +243,7 @@ private fun CheckForUpdates() {
 
                                         if (connection.responseCode !in 200..299) {
                                             throw java.io.IOException(
-                                                "Serwer zwrďż˝ciďż˝ kod ${connection.responseCode}."
+                                                "Serwer zwrócił kod ${connection.responseCode}."
                                             )
                                         }
 
@@ -294,7 +294,7 @@ private fun CheckForUpdates() {
                                     onFailure = { error ->
                                         isDownloading = false
                                         downloadMessage =
-                                            "Pobieranie nie powiodďż˝o siďż˝: ${error.message ?: "sprawdďż˝ poďż˝ďż˝czenie z internetem"}"
+                                            "Pobieranie nie powiodło się: ${error.message ?: "sprawdź połączenie z internetem"}"
                                     }
                                 )
                             }
@@ -303,9 +303,9 @@ private fun CheckForUpdates() {
                 ) {
                     Text(
                         when {
-                            isDownloading -> "Pobieranieďż˝"
+                            isDownloading -> "Pobieranie…"
                             downloadedApk != null -> "Uruchom instalator"
-                            else -> "Pobierz aktualizacjďż˝"
+                            else -> "Pobierz aktualizację"
                         }
                     )
                 }
@@ -315,7 +315,7 @@ private fun CheckForUpdates() {
                     enabled = !isDownloading,
                     onClick = { availableVersion = null }
                 ) {
-                    Text("Pďż˝niej")
+                    Text("Później")
                 }
             }
         )
@@ -432,10 +432,10 @@ private fun loadSchools(context: Context): List<School> {
                         number = value(cells, "Numer RSPO"),
                         type = value(cells, "Typ"),
                         name = name,
-                        region = value(cells, "WojewĂłdztwo"),
+                        region = value(cells, "Województwo"),
                         county = value(cells, "Powiat"),
                         municipality = value(cells, "Gmina"),
-                        town = value(cells, "MiejscowoĹ›Ä‡"),
+                        town = value(cells, "Miejscowość"),
                         street = value(cells, "Ulica"),
                         building = value(cells, "Numer budynku"),
                         postalCode = value(cells, "Kod pocztowy")
@@ -513,7 +513,7 @@ private fun printPdfFile(context: Context, file: File, jobName: String) {
                 if (cancellationSignal.isCanceled) callback.onWriteCancelled()
                 else callback.onWriteFinished(arrayOf(PageRange.ALL_PAGES))
             } catch (e: Exception) {
-                callback.onWriteFailed(e.message ?: "Nie udaĹ‚o siÄ™ przygotowaÄ‡ raportu do drukowania.")
+                callback.onWriteFailed(e.message ?: "Nie udało się przygotować raportu do drukowania.")
             }
         }
     }, PrintAttributes.Builder().setMediaSize(PrintAttributes.MediaSize.ISO_A4).build())
@@ -530,7 +530,7 @@ fun OpinionApp() {
     val indicators = remember { runCatching { assessmentStore.loadCatalog(context) }.getOrDefault(emptyList()) }
     var draft by remember { mutableStateOf(StudentDraft.fromJson(prefs.getString(DRAFT_KEY, null))) }
     var page by remember { mutableStateOf(-1) }
-    var status by remember { mutableStateOf("Dane sÄ… zapisywane lokalnie na tym urzÄ…dzeniu.") }
+    var status by remember { mutableStateOf("Dane są zapisywane lokalnie na tym urządzeniu.") }
     var previewFile by remember { mutableStateOf<File?>(null) }
     var showAiPromptDialog by remember { mutableStateOf(false) }
     var aiPrompt by remember { mutableStateOf("") }
@@ -556,7 +556,7 @@ fun OpinionApp() {
             val answer = answerMap[item.id] ?: return@mapNotNull null
             if (answer.rating == null && !answer.noData && answer.notes.isBlank()) return@mapNotNull null
             buildString {
-                append("Obszar: ").append(item.areaTitle).append("\nWskaĹşnik: ").append(item.title).append("\n")
+                append("Obszar: ").append(item.areaTitle).append("\nWskaźnik: ").append(item.title).append("\n")
                 when {
                     answer.noData -> append("Ocena: brak danych\n")
                     answer.rating != null -> {
@@ -634,9 +634,9 @@ fun OpinionApp() {
                     merged.put(imported)
                     archivePrefs.edit().putString(ARCHIVE_KEY, merged.toString()).apply()
                     archiveRefresh++
-                    status = "Zaimportowano opiniÄ™: ${imported.optString("name", "UczeĹ„")}. Zapisano jako nowy rekord."
+                    status = "Zaimportowano opinię: ${imported.optString("name", "Uczeń")}. Zapisano jako nowy rekord."
                 }.onFailure {
-                    status = "Odebrany plik opinii jest nieprawidĹ‚owy. Nie zapisano danych."
+                    status = "Odebrany plik opinii jest nieprawidłowy. Nie zapisano danych."
                 }
             }
         }
@@ -663,7 +663,7 @@ fun OpinionApp() {
         if (found) {
             archivePrefs.edit().putString(ARCHIVE_KEY, records.toString()).apply()
             archiveRefresh++
-            status = if (archived) "UczeĹ„ zostaĹ‚ przeniesiony do archiwum." else "UczeĹ„ zostaĹ‚ przywrĂłcony do aktywnych."
+            status = if (archived) "Uczeń został przeniesiony do archiwum." else "Uczeń został przywrócony do aktywnych."
         }
     }
     fun saveToArchive() {
@@ -680,7 +680,7 @@ fun OpinionApp() {
             .firstOrNull { it.optString("id") == activeRecordId }
         val record = JSONObject().apply {
             put("id", activeRecordId)
-            put("name", draft.studentName.ifBlank { "UczeĹ„ bez podanego imienia i nazwiska" })
+            put("name", draft.studentName.ifBlank { "Uczeń bez podanego imienia i nazwiska" })
             put("school", draft.school); put("className", draft.className); put("birthDate", draft.birthDate)
             put("savedAt", java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale("pl", "PL")).format(java.util.Date()))
             put("draft", draft.toJson()); put("answers", answersJson)
@@ -709,7 +709,7 @@ fun OpinionApp() {
         }
         return JSONObject().apply {
             put("id", activeRecordId)
-            put("name", draft.studentName.ifBlank { "UczeĹ„ bez podanego imienia i nazwiska" })
+            put("name", draft.studentName.ifBlank { "Uczeń bez podanego imienia i nazwiska" })
             put("school", draft.school)
             put("className", draft.className)
             put("birthDate", draft.birthDate)
@@ -740,7 +740,7 @@ fun OpinionApp() {
     val pdfLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri: Uri? ->
         if (uri != null) {
             val ok = runCatching { writeOpinionPdf(context, uri, draft, indicators, assessmentStore.getAllSavedAnswers()) }.isSuccess
-            status = if (ok) "Utworzono plik PDF." else "Nie udaĹ‚o siÄ™ utworzyÄ‡ PDF. SprĂłbuj ponownie."
+            status = if (ok) "Utworzono plik PDF." else "Nie udało się utworzyć PDF. Spróbuj ponownie."
         }
     }
 
@@ -750,9 +750,9 @@ fun OpinionApp() {
     val isIndicatorPage = page in firstIndicatorPage until conclusionsPage
     val indicatorIndex = page - firstIndicatorPage
     val pageTitle = when {
-        page == 0 -> "Dane szkoĹ‚y i ucznia"
-        page == 1 -> "ĹąrĂłdĹ‚a informacji"
-        isIndicatorPage -> "Ocena wskaĹşnika ${indicatorIndex + 1} z ${indicators.size}"
+        page == 0 -> "Dane szkoły i ucznia"
+        page == 1 -> "źródła informacji"
+        isIndicatorPage -> "Ocena wskaźnika ${indicatorIndex + 1} z ${indicators.size}"
         page == conclusionsPage -> "Wnioski do dalszej pracy z uczniem"
         page == summaryPage -> "Podsumowanie"
         else -> "Opinia ucznia"
@@ -767,7 +767,7 @@ fun OpinionApp() {
                 runCatching {
                     printPdfFile(context, fileToPreview, "Raport ucznia - ${draft.studentName}")
                 }.onFailure {
-                    status = "Nie udaĹ‚o siÄ™ uruchomiÄ‡ drukowania: ${it.message ?: "bĹ‚Ä…d"}"
+                    status = "Nie udało się uruchomić drukowania: ${it.message ?: "błąd"}"
                 }
             }
         )
@@ -794,27 +794,27 @@ fun OpinionApp() {
             Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("OPINIA UCZNIA", style = MaterialTheme.typography.labelLarge)
                 Text("Opinia o funkcjonowaniu ucznia w szkole", style = MaterialTheme.typography.headlineMedium)
-                Text("WypeĹ‚niaj kolejne sekcje. Dane i oceny sÄ… zapisywane lokalnie na urzÄ…dzeniu.")
-                Button(onClick = { page = 0 }, modifier = Modifier.fillMaxWidth()) { Text("Rozpocznij / kontynuuj bieĹĽÄ…cÄ… opiniÄ™") }
+                Text("Wypełniaj kolejne sekcje. Dane i oceny są zapisywane lokalnie na urządzeniu.")
+                Button(onClick = { page = 0 }, modifier = Modifier.fillMaxWidth()) { Text("Rozpocznij / kontynuuj bieťącą opinię") }
                 OutlinedButton(onClick = {
                     activeRecordId = java.util.UUID.randomUUID().toString()
                     draft = StudentDraft()
                     prefs.edit().putString(DRAFT_KEY, draft.toJson()).apply()
                     assessmentStore.clearAnswers()
                     page = 0
-                    status = "RozpoczÄ™to nowÄ… opiniÄ™."
+                    status = "Rozpoczęto nową opinię."
                 }, modifier = Modifier.fillMaxWidth()) { Text("Nowa opinia") }
                 OutlinedButton(
                     onClick = { page = -2 },
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("O aplikacji") }
                 HorizontalDivider()
-                Text("Baza uczniĂłw", style = MaterialTheme.typography.titleLarge)
-                Text("UczniĂłw moĹĽna archiwizowaÄ‡ bez usuwania ich opinii.", style = MaterialTheme.typography.bodyMedium)
+                Text("Baza uczniów", style = MaterialTheme.typography.titleLarge)
+                Text("Uczniów moťna archiwizować bez usuwania ich opinii.", style = MaterialTheme.typography.bodyMedium)
                 OutlinedButton(
                     onClick = { startTransfer("receive") },
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("Importuj opiniÄ™ przez QR") }
+                ) { Text("Importuj opinię przez QR") }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -857,13 +857,13 @@ fun OpinionApp() {
                         if (showArchivedStudents)
                             "Archiwum jest puste."
                         else
-                            "Brak aktywnych uczniĂłw. MoĹĽesz rozpoczÄ…Ä‡ nowÄ… opiniÄ™ lub sprawdziÄ‡ archiwum."
+                            "Brak aktywnych uczniów. Moťesz rozpocząć nową opinię lub sprawdzić archiwum."
                     )
                 }
 
                 for (record in visibleRecords.reversed()) {
                     val recordId = record.optString("id")
-                    val recordName = record.optString("name", "UczeĹ„")
+                    val recordName = record.optString("name", "Uczeń")
 
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(
@@ -878,7 +878,7 @@ fun OpinionApp() {
                                     record.optString("className").let {
                                         if (it.isNotBlank()) "kl. $it" else ""
                                     }
-                                ).filter { it.isNotBlank() }.joinToString(" â€˘ ")
+                                ).filter { it.isNotBlank() }.joinToString("   ")
                             )
 
                             Text(
@@ -894,7 +894,7 @@ fun OpinionApp() {
                                     onClick = { loadArchivedRecord(record) },
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    Text("OtwĂłrz opiniÄ™")
+                                    Text("Otwórz opinię")
                                 }
 
                                 TextButton(
@@ -907,14 +907,14 @@ fun OpinionApp() {
                                         }
                                     }
                                 ) {
-                                    Text(if (showArchivedStudents) "â†© PrzywrĂłÄ‡" else "đź“¦ Archiwizuj")
+                                    Text(if (showArchivedStudents) "↩ Przywróć" else "📦 Archiwizuj")
                                 }
                             }
 
                             TextButton(
                                 onClick = { startTransfer("send", record.toString()) },
                                 modifier = Modifier.fillMaxWidth()
-                            ) { Text("UdostÄ™pnij przez QR + Bluetooth") }
+                            ) { Text("Udostępnij przez QR + Bluetooth") }
                         }
                     }
                 }
@@ -922,11 +922,11 @@ fun OpinionApp() {
                 if (pendingArchiveId != null) {
                     AlertDialog(
                         onDismissRequest = { pendingArchiveId = null },
-                        title = { Text("ArchiwizowaÄ‡ ucznia?") },
+                        title = { Text("Archiwizować ucznia?") },
                         text = {
                             Text(
-                                "Czy na pewno przenieĹ›Ä‡ ucznia â€ž${pendingArchiveName}â€ť do archiwum? " +
-                                        "Opinia nie zostanie usuniÄ™ta i bÄ™dzie moĹĽna jÄ… pĂłĹşniej przywrĂłciÄ‡."
+                                "Czy na pewno przenieść ucznia „${pendingArchiveName}” do archiwum? " +
+                                        "Opinia nie zostanie usunięta i będzie moťna ją później przywrócić."
                             )
                         },
                         confirmButton = {
@@ -959,7 +959,7 @@ fun OpinionApp() {
         }
     } else if (isIndicatorPage) {
         Scaffold(topBar = { TopAppBar(title = { Text(pageTitle) }, navigationIcon = {
-            OutlinedButton(onClick = { page = if (indicatorIndex == 0) 1 else page - 1 }) { Text("WrĂłÄ‡") }
+            OutlinedButton(onClick = { page = if (indicatorIndex == 0) 1 else page - 1 }) { Text("Wróć") }
         }) }) { padding ->
             IndicatorAssessmentScreen(
                 indicators = indicators, currentIndex = indicatorIndex, store = assessmentStore,
@@ -970,20 +970,20 @@ fun OpinionApp() {
         }
     } else {
         Scaffold(topBar = { TopAppBar(title = { Text(pageTitle) }, navigationIcon = {
-            OutlinedButton(onClick = { page = when { page == 0 -> -1; page == conclusionsPage -> if (indicators.isNotEmpty()) conclusionsPage - 1 else 1; page == summaryPage -> conclusionsPage; else -> page - 1 } }) { Text("WrĂłÄ‡") }
+            OutlinedButton(onClick = { page = when { page == 0 -> -1; page == conclusionsPage -> if (indicators.isNotEmpty()) conclusionsPage - 1 else 1; page == summaryPage -> conclusionsPage; else -> page - 1 } }) { Text("Wróć") }
         }) }) { padding ->
             Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 when (page) {
                     0 -> SchoolAndStudentForm(draft = draft, update = ::update)
                     1 -> {
-                        Text("ĹąrĂłdĹ‚a informacji", style = MaterialTheme.typography.titleLarge)
-                        Text("Zaznacz wszystkie ĹşrĂłdĹ‚a wykorzystane przy przygotowaniu opinii.")
+                        Text("źródła informacji", style = MaterialTheme.typography.titleLarge)
+                        Text("Zaznacz wszystkie źródła wykorzystane przy przygotowaniu opinii.")
                         SourceCheckboxes(draft.sources) { update(draft.copy(sources = it)) }
                     }
                     conclusionsPage -> {
-                        Text("NaleĹĽy wskazaÄ‡ wnioski dotyczÄ…ce dalszej pracy majÄ…ce na celu poprawÄ™ funkcjonowania ucznia.")
-                        OutlinedTextField(value = draft.conclusions, onValueChange = { update(draft.copy(conclusions = it)) }, label = { Text("Wnioski do dalszej pracy z uczniem") }, placeholder = { Text("Wpisz wnioski wynikajÄ…ce z przeprowadzonej oceny") }, modifier = Modifier.fillMaxWidth(), minLines = 5)
-                        Text("MoĹĽesz przygotowaÄ‡ prompt dla dowolnego czatu AI. Przed udostÄ™pnieniem sprawdĹş treĹ›Ä‡ i usuĹ„ informacje, ktĂłre mogĹ‚yby identyfikowaÄ‡ ucznia.", style = MaterialTheme.typography.bodySmall)
+                        Text("Naleťy wskazać wnioski dotyczące dalszej pracy mające na celu poprawę funkcjonowania ucznia.")
+                        OutlinedTextField(value = draft.conclusions, onValueChange = { update(draft.copy(conclusions = it)) }, label = { Text("Wnioski do dalszej pracy z uczniem") }, placeholder = { Text("Wpisz wnioski wynikające z przeprowadzonej oceny") }, modifier = Modifier.fillMaxWidth(), minLines = 5)
+                        Text("Moťesz przygotować prompt dla dowolnego czatu AI. Przed udostępnieniem sprawdź treść i usuń informacje, które mogłyby identyfikować ucznia.", style = MaterialTheme.typography.bodySmall)
                         Button(onClick = { aiPrompt = buildAiPrompt(); showAiPromptDialog = true }, modifier = Modifier.fillMaxWidth()) { Text("Przygotuj prompt dla AI") }
                         OutlinedTextField(
                             value = monitoringSourceText,
@@ -991,8 +991,8 @@ fun OpinionApp() {
                                 monitoringSourceText = text
                                 prefs.edit().putString("MONITORING_SOURCE_TEXT", text).apply()
                             },
-                            label = { Text("PeĹ‚na odpowiedĹş AI â€” wklej tutaj wygenerowany tekst") },
-                            placeholder = { Text("Wklej peĹ‚nÄ… odpowiedĹş AI zawierajÄ…cÄ… punkt 3: Wnioski do dalszej obserwacji") },
+                            label = { Text("Pełna odpowiedź AI — wklej tutaj wygenerowany tekst") },
+                            placeholder = { Text("Wklej pełną odpowiedź AI zawierającą punkt 3: Wnioski do dalszej obserwacji") },
                             modifier = Modifier.fillMaxWidth(),
                             minLines = 6
                         )
@@ -1003,9 +1003,9 @@ fun OpinionApp() {
                                 ).find(monitoringSourceText)?.value?.trim()
 
                                 if (sekcja.isNullOrBlank()) {
-                                    status = "Nie znaleziono punktu 3: Wnioski do dalszej obserwacji. Wklej peĹ‚nÄ… odpowiedĹş AI."
+                                    status = "Nie znaleziono punktu 3: Wnioski do dalszej obserwacji. Wklej pełną odpowiedź AI."
                                 } else if (activeRecordId.isNullOrBlank()) {
-                                    status = "Najpierw zapisz lub otwĂłrz opiniÄ™ ucznia."
+                                    status = "Najpierw zapisz lub otwórz opinię ucznia."
                                 } else {
                                     monitoringStudentId = activeRecordId
                                     monitoringStudentName = draft.studentName
@@ -1017,23 +1017,23 @@ fun OpinionApp() {
                         ) {
                             Text("Monitoring ucznia")
                         }
-                        Text("Osoby opracowujÄ…ce opiniÄ™", style = MaterialTheme.typography.titleLarge)
+                        Text("Osoby opracowujące opinię", style = MaterialTheme.typography.titleLarge)
                         OutlinedTextField(draft.homeroomTeacher, { update(draft.copy(homeroomTeacher = it)) }, label = { Text("Wychowawca klasy") }, modifier = Modifier.fillMaxWidth())
                         OutlinedTextField(draft.pedagogue, { update(draft.copy(pedagogue = it)) }, label = { Text("Pedagog / pedagog specjalny") }, modifier = Modifier.fillMaxWidth())
                         OutlinedTextField(draft.psychologist, { update(draft.copy(psychologist = it)) }, label = { Text("Psycholog") }, modifier = Modifier.fillMaxWidth())
-                        OutlinedTextField(draft.otherStaff, { update(draft.copy(otherStaff = it)) }, label = { Text("Inni nauczyciele / specjaliĹ›ci") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
-                        OutlinedTextField(draft.schoolDirector, { update(draft.copy(schoolDirector = it)) }, label = { Text("Dyrektor szkoĹ‚y") }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(draft.otherStaff, { update(draft.copy(otherStaff = it)) }, label = { Text("Inni nauczyciele / specjaliści") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
+                        OutlinedTextField(draft.schoolDirector, { update(draft.copy(schoolDirector = it)) }, label = { Text("Dyrektor szkoły") }, modifier = Modifier.fillMaxWidth())
                     }
                     summaryPage -> {
                         Text("Podsumowanie szkicu", style = MaterialTheme.typography.titleLarge)
-                        SummaryLine("SzkoĹ‚a", draft.school); SummaryLine("MiejscowoĹ›Ä‡", draft.schoolTown)
-                        SummaryLine("UczeĹ„", draft.studentName); SummaryLine("Data urodzenia", draft.birthDate)
+                        SummaryLine("Szkoła", draft.school); SummaryLine("Miejscowość", draft.schoolTown)
+                        SummaryLine("Uczeń", draft.studentName); SummaryLine("Data urodzenia", draft.birthDate)
                         SummaryLine("Klasa", draft.className); SummaryLine("Rok szkolny", draft.schoolYear)
-                        SummaryLine("Okres obserwacji", listOf(draft.observationStart, draft.observationEnd).filter { it.isNotBlank() }.joinToString(" â€“ "))
-                        SummaryLine("ĹąrĂłdĹ‚a informacji", draft.sources.joinToString("\n") { "â€˘ $it" })
+                        SummaryLine("Okres obserwacji", listOf(draft.observationStart, draft.observationEnd).filter { it.isNotBlank() }.joinToString(" – "))
+                        SummaryLine("źródła informacji", draft.sources.joinToString("\n") { "  $it" })
                         val answers = assessmentStore.getAllSavedAnswers()
                         Text("Obszar A", style = MaterialTheme.typography.titleLarge)
-                        Text("AktywnoĹ›Ä‡ i uczestniczenie ucznia zgodnie z obszarami ICF (MiÄ™dzynarodowej Klasyfikacji Funkcjonowania, NiepeĹ‚nosprawnoĹ›ci i Zdrowia)")
+                        Text("Aktywność i uczestniczenie ucznia zgodnie z obszarami ICF (Międzynarodowej Klasyfikacji Funkcjonowania, Niepełnosprawności i Zdrowia)")
                         indicators.groupBy { it.areaTitle }.forEach { (areaTitle, areaIndicators) ->
                             Text(normalizeAreaTitle(areaTitle), style = MaterialTheme.typography.titleMedium)
                             areaIndicators.forEach { item ->
@@ -1041,7 +1041,7 @@ fun OpinionApp() {
                                 val interpretation = when {
                                     answer == null -> "Nie oceniono"
                                     answer.noData -> "Brak danych"
-                                    answer.rating != null -> item.levels.firstOrNull { it.value == answer.rating }?.description ?: "Brak opisu interpretacji w katalogu ĹşrĂłdĹ‚owym"
+                                    answer.rating != null -> item.levels.firstOrNull { it.value == answer.rating }?.description ?: "Brak opisu interpretacji w katalogu źródłowym"
                                     else -> "Nie oceniono"
                                 }
                                 Column(Modifier.fillMaxWidth().padding(start = 8.dp, bottom = 8.dp)) {
@@ -1053,10 +1053,10 @@ fun OpinionApp() {
                         }
                         SummaryLine("Wnioski do dalszej pracy z uczniem", draft.conclusions)
                         SummaryLine("Wychowawca klasy", draft.homeroomTeacher); SummaryLine("Pedagog / pedagog specjalny", draft.pedagogue)
-                        SummaryLine("Psycholog", draft.psychologist); SummaryLine("Inni nauczyciele / specjaliĹ›ci", draft.otherStaff)
-                        SummaryLine("Dyrektor szkoĹ‚y", draft.schoolDirector)
+                        SummaryLine("Psycholog", draft.psychologist); SummaryLine("Inni nauczyciele / specjaliści", draft.otherStaff)
+                        SummaryLine("Dyrektor szkoły", draft.schoolDirector)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = { saveToArchive() }, modifier = Modifier.weight(1f)) { Text("Zapisz w bazie uczniĂłw") }
+                            Button(onClick = { saveToArchive() }, modifier = Modifier.weight(1f)) { Text("Zapisz w bazie uczniów") }
                             Button(onClick = {
                                 val filename = "Opinia_${draft.studentName.trim().replace(Regex("[^A-Za-z0-9_-]"), "_").ifBlank { "ucznia" }}.pdf"
                                 pdfLauncher.launch(filename)
@@ -1068,16 +1068,16 @@ fun OpinionApp() {
                                 val tempPdf = File(context.cacheDir, "Opinia_${safeName}_podglad.pdf")
                                 runCatching {
                                     writeOpinionPdf(context, Uri.fromFile(tempPdf), draft, indicators, assessmentStore.getAllSavedAnswers())
-                                    check(tempPdf.exists() && tempPdf.length() > 0L) { "Plik PDF jest pusty lub nie powstaĹ‚." }
+                                    check(tempPdf.exists() && tempPdf.length() > 0L) { "Plik PDF jest pusty lub nie powstał." }
                                 }.onSuccess {
                                     previewFile = tempPdf
-                                    status = "PodglÄ…d gotowy. SprawdĹş strony przed drukowaniem."
+                                    status = "Podgląd gotowy. Sprawdź strony przed drukowaniem."
                                 }.onFailure {
-                                    status = "Nie udaĹ‚o siÄ™ przygotowaÄ‡ podglÄ…du PDF: ${it.message ?: "bĹ‚Ä…d"}"
+                                    status = "Nie udało się przygotować podglądu PDF: ${it.message ?: "błąd"}"
                                 }
                             },
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text("PodglÄ…d wydruku") }
+                        ) { Text("Podgląd wydruku") }
                         Button(onClick = {
                             val safeName = draft.studentName.trim().replace(Regex("[^A-Za-z0-9_-]"), "_").ifBlank { "ucznia" }
                             val tempPdf = File(context.cacheDir, "Opinia_${safeName}_do_druku.pdf")
@@ -1086,16 +1086,16 @@ fun OpinionApp() {
                             }.isSuccess
                             if (ok && tempPdf.exists() && tempPdf.length() > 0L) {
                                 runCatching { printPdfFile(context, tempPdf, "Raport ucznia - ${draft.studentName}") }
-                                    .onFailure { status = "Nie udaĹ‚o siÄ™ uruchomiÄ‡ drukowania: ${it.message ?: "bĹ‚Ä…d systemu"}" }
-                                if (status.isBlank() || status == "Dane sÄ… zapisywane lokalnie na tym urzÄ…dzeniu.") {
-                                    status = "Otworzono drukowanie systemowe. Wybierz dostÄ™pnÄ… drukarkÄ™ lub usĹ‚ugÄ™ drukowania."
+                                    .onFailure { status = "Nie udało się uruchomić drukowania: ${it.message ?: "błąd systemu"}" }
+                                if (status.isBlank() || status == "Dane są zapisywane lokalnie na tym urządzeniu.") {
+                                    status = "Otworzono drukowanie systemowe. Wybierz dostępną drukarkę lub usługę drukowania."
                                 }
-                            } else status = "Nie udaĹ‚o siÄ™ przygotowaÄ‡ PDF do drukowania. Najpierw sprĂłbuj wyeksportowaÄ‡ raport do PDF."
+                            } else status = "Nie udało się przygotować PDF do drukowania. Najpierw spróbuj wyeksportować raport do PDF."
                         }, modifier = Modifier.fillMaxWidth()) { Text("Drukuj raport") }
                         OutlinedButton(
                             onClick = { startTransfer("send", currentRecordJsonForTransfer()) },
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text("UdostÄ™pnij opiniÄ™ przez QR + Bluetooth") }
+                        ) { Text("Udostępnij opinię przez QR + Bluetooth") }
                     }
                 }
                 Text(status, style = MaterialTheme.typography.bodySmall)
@@ -1107,12 +1107,12 @@ fun OpinionApp() {
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(onClick = { page = when { page == 0 -> -1; page == conclusionsPage -> if (indicators.isNotEmpty()) conclusionsPage - 1 else 1; page == summaryPage -> conclusionsPage; else -> page - 1 } }, modifier = Modifier.weight(1f)) { Text(if (page == 0) "Strona gĹ‚Ăłwna" else "Poprzednia") }
+                    OutlinedButton(onClick = { page = when { page == 0 -> -1; page == conclusionsPage -> if (indicators.isNotEmpty()) conclusionsPage - 1 else 1; page == summaryPage -> conclusionsPage; else -> page - 1 } }, modifier = Modifier.weight(1f)) { Text(if (page == 0) "Strona główna" else "Poprzednia") }
                     Button(onClick = {
                         prefs.edit().putString(DRAFT_KEY, draft.toJson()).apply()
                         status = "Zapisano szkic lokalnie."
                         page = when { page == 0 -> 1; page == 1 -> if (indicators.isNotEmpty()) firstIndicatorPage else conclusionsPage; page == conclusionsPage -> summaryPage; page == summaryPage -> -1; else -> page + 1 }
-                    }, modifier = Modifier.weight(1f)) { Text(when (page) { 0, 1 -> "Dalej"; conclusionsPage -> "PrzejdĹş do podsumowania"; summaryPage -> "ZakoĹ„cz"; else -> "Dalej" }) }
+                    }, modifier = Modifier.weight(1f)) { Text(when (page) { 0, 1 -> "Dalej"; conclusionsPage -> "Przejdź do podsumowania"; summaryPage -> "Zakończ"; else -> "Dalej" }) }
                 }
             }
         }
@@ -1124,8 +1124,8 @@ fun OpinionApp() {
             title = { Text("Prompt dla czatu AI") },
             text = {
                 Column(Modifier.fillMaxWidth().height(440.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("SprawdĹş caĹ‚Ä… treĹ›Ä‡ przed wysĹ‚aniem. Prompt nie zawiera imienia, nazwiska, daty urodzenia, szkoĹ‚y ani danych personelu. Komentarze mogÄ… jednak zawieraÄ‡ dane identyfikujÄ…ce, dlatego przejrzyj je rÄ™cznie.", style = MaterialTheme.typography.bodySmall)
-                    OutlinedTextField(value = aiPrompt, onValueChange = { aiPrompt = it }, modifier = Modifier.fillMaxWidth(), minLines = 12, label = { Text("TreĹ›Ä‡ do sprawdzenia i udostÄ™pnienia") })
+                    Text("Sprawdź całą treść przed wysłaniem. Prompt nie zawiera imienia, nazwiska, daty urodzenia, szkoły ani danych personelu. Komentarze mogą jednak zawierać dane identyfikujące, dlatego przejrzyj je ręcznie.", style = MaterialTheme.typography.bodySmall)
+                    OutlinedTextField(value = aiPrompt, onValueChange = { aiPrompt = it }, modifier = Modifier.fillMaxWidth(), minLines = 12, label = { Text("Treść do sprawdzenia i udostępnienia") })
                 }
             },
             confirmButton = {
@@ -1139,12 +1139,12 @@ fun OpinionApp() {
                         val intent = Intent(Intent.ACTION_SEND).apply {
                             type = "text/plain"
                             putExtra(Intent.EXTRA_TEXT, aiPrompt)
-                            putExtra(Intent.EXTRA_TITLE, "Prompt do opracowania wnioskĂłw")
+                            putExtra(Intent.EXTRA_TITLE, "Prompt do opracowania wniosków")
                         }
-                        runCatching { context.startActivity(Intent.createChooser(intent, "UdostÄ™pnij prompt do czatu AI")) }
-                            .onFailure { status = "Nie udaĹ‚o siÄ™ otworzyÄ‡ menu udostÄ™pniania. Skopiuj prompt rÄ™cznie." }
+                        runCatching { context.startActivity(Intent.createChooser(intent, "Udostępnij prompt do czatu AI")) }
+                            .onFailure { status = "Nie udało się otworzyć menu udostępniania. Skopiuj prompt ręcznie." }
                         showAiPromptDialog = false
-                    }) { Text("UdostÄ™pnij do czatu AI") }
+                    }) { Text("Udostępnij do czatu AI") }
                 }
             },
             dismissButton = { TextButton(onClick = { showAiPromptDialog = false }) { Text("Anuluj") } }
@@ -1172,7 +1172,7 @@ private fun AboutAppScreen(
                 title = { Text("O aplikacji", color = Color.White, fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     TextButton(onClick = onBack) {
-                        Text("â€ą", color = Color.White, style = MaterialTheme.typography.headlineLarge)
+                        Text("OU", color = Color.White, style = MaterialTheme.typography.headlineLarge)
                     }
                 },
                 colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
@@ -1195,10 +1195,10 @@ private fun AboutAppScreen(
             ) {
                 Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Autor", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = navy)
-                    Text("PaweĹ‚ GÄ™bicki", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-                    Text("NiezaleĹĽny developer i edukator", style = MaterialTheme.typography.bodyLarge)
+                    Text("Paweł Gębicki", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+                    Text("Niezaleťny developer i edukator", style = MaterialTheme.typography.bodyLarge)
                     Button(onClick = onOpenWebsite, modifier = Modifier.fillMaxWidth(), colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = navy)) {
-                        Text("đźŚ  pggp.pl")
+                        Text("🌐  pggp.pl")
                     }
                 }
             }
@@ -1209,18 +1209,18 @@ private fun AboutAppScreen(
                 colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = paleGreen)
             ) {
                 Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("â•  Postaw mi kawÄ™!", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = green)
+                    Text("☕  Postaw mi kawę!", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = green)
                     Text(
     """
-    Opinia Ucznia pomaga porzÄ…dkowaÄ‡ informacje o funkcjonowaniu ucznia w szkole, dokumentowaÄ‡ obserwacje i przygotowywaÄ‡ wnioski do dalszej pracy. Celem aplikacji jest wspieranie nauczycieli i specjalistĂłw w tworzeniu rzetelnych, opartych na danych opinii.
+    Opinia Ucznia pomaga porządkować informacje o funkcjonowaniu ucznia w szkole, dokumentować obserwacje i przygotowywać wnioski do dalszej pracy. Celem aplikacji jest wspieranie nauczycieli i specjalistów w tworzeniu rzetelnych, opartych na danych opinii.
 
-    Aplikacja rozwijana jest z myĹ›lÄ… o praktycznym wsparciu pracy szkoĹ‚y. JeĹ›li uznajesz jÄ… za przydatnÄ…, moĹĽesz wesprzeÄ‡ dalszy rozwĂłj projektu. DziÄ™kujÄ™! đź™‚
+    Aplikacja rozwijana jest z myślą o praktycznym wsparciu pracy szkoły. Jeśli uznajesz ją za przydatną, moťesz wesprzeć dalszy rozwój projektu. Dziękuję! 🙂
     """.trimIndent(),
     style = MaterialTheme.typography.bodyLarge,
     color = Color(0xFF303632)
 )
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("MaĹ‚a\n5 zĹ‚", "Ĺšrednia\n10 zĹ‚", "DuĹĽa\n25 zĹ‚").forEach { amount ->
+                        listOf("Mała\n5 zł", "Średnia\n10 zł", "Duťa\n25 zł").forEach { amount ->
                             OutlinedButton(
                                 onClick = onSupport,
                                 modifier = Modifier.weight(1f).height(76.dp),
@@ -1232,7 +1232,7 @@ private fun AboutAppScreen(
                         }
                     }
                     Text(
-                        "Przycisk otwiera BuyCoffee.to. PĹ‚atnoĹ›Ä‡ odbywa siÄ™ na zewnÄ™trznej stronie.",
+                        "Przycisk otwiera BuyCoffee.to. Płatność odbywa się na zewnętrznej stronie.",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFF5B665F),
                         textAlign = TextAlign.Center,
@@ -1242,8 +1242,8 @@ private fun AboutAppScreen(
             }
 
             Column(Modifier.fillMaxWidth(), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Â© 2026 PaweĹ‚ GÄ™bicki Â· pggp.pl", textAlign = TextAlign.Center, color = Color.Gray)
-                Text("Wszelkie prawa zastrzeĹĽone", textAlign = TextAlign.Center, color = Color.Gray)
+                Text("© 2026 Paweł Gębicki · pggp.pl", textAlign = TextAlign.Center, color = Color.Gray)
+                Text("Wszelkie prawa zastrzeťone", textAlign = TextAlign.Center, color = Color.Gray)
                 Text("Wersja ${BuildConfig.VERSION_NAME}", textAlign = TextAlign.Center, color = Color.Gray, style = MaterialTheme.typography.bodySmall)
             }
         }
@@ -1251,14 +1251,14 @@ private fun AboutAppScreen(
 }
 
 fun normalizeAreaTitle(title: String): String = when {
-    title.startsWith("Obszar 1.") -> "Obszar 1 - Uczenie siÄ™ i stosowanie wiedzy"
-    title.startsWith("Obszar 2.") -> "Obszar 2 - OgĂłlne zadania i obowiÄ…zki"
-    title.startsWith("Obszar 3.") -> "Obszar 3 - Porozumiewanie siÄ™"
-    title.startsWith("Obszar 4.") -> "Obszar 4 - Motoryka, poruszanie siÄ™, w tym mobilnoĹ›Ä‡ i aktywnoĹ›Ä‡ manualna"
-    title.startsWith("Obszar 5.") -> "Obszar 5 - Dbanie o siebie, samoobsĹ‚uga i samodzielnoĹ›Ä‡"
-    title.startsWith("Obszar 6.") -> "Obszar 6 - Ĺ»ycie domowe"
-    title.startsWith("Obszar 7.") -> "Obszar 7 - Wzajemne kontakty i zwiÄ…zki miÄ™dzyludzkie, ĹĽycie w spoĹ‚ecznoĹ›ci szkolnej i lokalnej"
-    title.startsWith("CzÄ™Ĺ›Ä‡ B.") -> "CzÄ™Ĺ›Ä‡ B - Zakres i rodzaj trudnoĹ›ci w realizacji programĂłw nauczania"
+    title.startsWith("Obszar 1.") -> "Obszar 1 - Uczenie się i stosowanie wiedzy"
+    title.startsWith("Obszar 2.") -> "Obszar 2 - Ogólne zadania i obowiązki"
+    title.startsWith("Obszar 3.") -> "Obszar 3 - Porozumiewanie się"
+    title.startsWith("Obszar 4.") -> "Obszar 4 - Motoryka, poruszanie się, w tym mobilność i aktywność manualna"
+    title.startsWith("Obszar 5.") -> "Obszar 5 - Dbanie o siebie, samoobsługa i samodzielność"
+    title.startsWith("Obszar 6.") -> "Obszar 6 - Życie domowe"
+    title.startsWith("Obszar 7.") -> "Obszar 7 - Wzajemne kontakty i związki międzyludzkie, ťycie w społeczności szkolnej i lokalnej"
+    title.startsWith("Część B.") -> "Część B - Zakres i rodzaj trudności w realizacji programów nauczania"
     title.startsWith("Obszar C.") -> "Obszar C - Mocne strony i uzdolnienia ucznia"
     else -> title
 }
@@ -1269,12 +1269,12 @@ private fun SourceCheckboxes(
     onSelectionChange: (List<String>) -> Unit
 ) {
     val sourceOptions = listOf(
-        "Obserwacja ucznia podczas zajÄ™Ä‡ edukacyjnych",
-        "Obserwacja podczas przerw i sytuacji spoĹ‚ecznych",
+        "Obserwacja ucznia podczas zajęć edukacyjnych",
+        "Obserwacja podczas przerw i sytuacji społecznych",
         "Rozmowa z uczniem",
         "Rozmowa z rodzicami / opiekunami",
-        "Informacje od nauczycieli przedmiotĂłw",
-        "Informacje od specjalistĂłw szkolnych",
+        "Informacje od nauczycieli przedmiotów",
+        "Informacje od specjalistów szkolnych",
         "Analiza dokumentacji szkolnej"
     )
 
@@ -1322,8 +1322,8 @@ private fun SchoolAndStudentForm(draft: StudentDraft, update: (StudentDraft) -> 
             showSchoolResults = it.trim().length >= 3
             if (schools.value == null) schools.value = loadSchools(context)
         },
-        label = { Text("Wyszukaj szkoĹ‚Ä™ w RSPO") },
-        placeholder = { Text("Wpisz nazwÄ™ lub miejscowoĹ›Ä‡ (min. 3 znaki)") },
+        label = { Text("Wyszukaj szkołę w RSPO") },
+        placeholder = { Text("Wpisz nazwę lub miejscowość (min. 3 znaki)") },
         modifier = Modifier.fillMaxWidth()
     )
     if (showSchoolResults && !schools.value.isNullOrEmpty()) {
@@ -1340,24 +1340,24 @@ private fun SchoolAndStudentForm(draft: StudentDraft, update: (StudentDraft) -> 
             }) {
                 Column(Modifier.padding(12.dp)) {
                     Text(school.name, style = MaterialTheme.typography.titleSmall)
-                    Text("${school.town}${if (school.address.isNotBlank()) " â€˘ ${school.address}" else ""}")
-                    Text("RSPO: ${school.number} â€˘ ${school.type}", style = MaterialTheme.typography.bodySmall)
+                    Text("${school.town}${if (school.address.isNotBlank()) "   ${school.address}" else ""}")
+                    Text("RSPO: ${school.number}   ${school.type}", style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
-        if (results.isEmpty()) Text("Brak wynikĂłw dla podanej frazy.")
+        if (results.isEmpty()) Text("Brak wyników dla podanej frazy.")
     } else if (showSchoolResults && schools.value == null) {
-        Text("Wczytywanie bazy RSPOâ€¦")
+        Text("Wczytywanie bazy RSPO…")
     } else if (showSchoolResults && schools.value.isNullOrEmpty()) {
-        Text("Nie udaĹ‚o siÄ™ wczytaÄ‡ bazy RSPO. SprawdĹş, czy plik app/src/main/assets/rspo.csv istnieje.")
+        Text("Nie udało się wczytać bazy RSPO. Sprawdź, czy plik app/src/main/assets/rspo.csv istnieje.")
     }
 
     OutlinedTextField(draft.schoolTown, { update(draft.copy(schoolTown = it)) },
-        label = { Text("MiejscowoĹ›Ä‡ szkoĹ‚y") }, modifier = Modifier.fillMaxWidth())
+        label = { Text("Miejscowość szkoły") }, modifier = Modifier.fillMaxWidth())
     Spacer(Modifier.height(4.dp))
     Text("2. Informacje o uczniu", style = MaterialTheme.typography.titleLarge)
     OutlinedTextField(draft.studentName, { update(draft.copy(studentName = it)) },
-        label = { Text("ImiÄ™ i nazwisko ucznia") }, modifier = Modifier.fillMaxWidth())
+        label = { Text("Imię i nazwisko ucznia") }, modifier = Modifier.fillMaxWidth())
     OutlinedButton(onClick = {
         val calendar = Calendar.getInstance()
         val parts = draft.birthDate.split(".")
@@ -1372,13 +1372,13 @@ private fun SchoolAndStudentForm(draft: StudentDraft, update: (StudentDraft) -> 
             calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)
         ).show()
     }, modifier = Modifier.fillMaxWidth()) {
-        Text(if (draft.birthDate.isBlank()) "Wybierz datÄ™ urodzenia" else "Data urodzenia: ${draft.birthDate}")
+        Text(if (draft.birthDate.isBlank()) "Wybierz datę urodzenia" else "Data urodzenia: ${draft.birthDate}")
     }
     OutlinedTextField(draft.className, { update(draft.copy(className = it)) },
         label = { Text("Klasa") }, modifier = Modifier.fillMaxWidth())
     OutlinedTextField(draft.schoolYear, { update(draft.copy(schoolYear = it)) },
         label = { Text("Rok szkolny") }, placeholder = { Text("np. 2026/2027") }, modifier = Modifier.fillMaxWidth())
-    Text("Okres objÄ™ty obserwacjÄ…", style = MaterialTheme.typography.titleMedium)
+    Text("Okres objęty obserwacją", style = MaterialTheme.typography.titleMedium)
     OutlinedButton(onClick = {
         val cal = Calendar.getInstance()
         DatePickerDialog(context, { _, y, m, d ->
@@ -1388,16 +1388,16 @@ private fun SchoolAndStudentForm(draft: StudentDraft, update: (StudentDraft) -> 
             val endBefore = endParts.size == 3 && (endParts[2] < startParts[2] || (endParts[2] == startParts[2] && (endParts[1] < startParts[1] || (endParts[1] == startParts[1] && endParts[0] < startParts[0]))))
             update(draft.copy(observationStart = chosen, observationEnd = if (endBefore) "" else draft.observationEnd))
         }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
-    }, modifier = Modifier.fillMaxWidth()) { Text(if (draft.observationStart.isBlank()) "Wybierz datÄ™ rozpoczÄ™cia" else "Od: ${draft.observationStart}") }
+    }, modifier = Modifier.fillMaxWidth()) { Text(if (draft.observationStart.isBlank()) "Wybierz datę rozpoczęcia" else "Od: ${draft.observationStart}") }
     OutlinedButton(onClick = {
         val cal = Calendar.getInstance()
         DatePickerDialog(context, { _, y, m, d ->
             val chosen = "%02d.%02d.%04d".format(d, m + 1, y)
             fun key(s: String): Int = s.split(".").mapNotNull { it.toIntOrNull() }.let { if (it.size == 3) it[2]*10000+it[1]*100+it[0] else 0 }
             if (draft.observationStart.isBlank() || key(chosen) >= key(draft.observationStart)) update(draft.copy(observationEnd = chosen))
-            else android.widget.Toast.makeText(context, "Data zakoĹ„czenia nie moĹĽe byÄ‡ wczeĹ›niejsza niĹĽ data rozpoczÄ™cia.", android.widget.Toast.LENGTH_LONG).show()
+            else android.widget.Toast.makeText(context, "Data zakończenia nie moťe być wcześniejsza niť data rozpoczęcia.", android.widget.Toast.LENGTH_LONG).show()
         }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
-    }, modifier = Modifier.fillMaxWidth()) { Text(if (draft.observationEnd.isBlank()) "Wybierz datÄ™ zakoĹ„czenia" else "Do: ${draft.observationEnd}") }
+    }, modifier = Modifier.fillMaxWidth()) { Text(if (draft.observationEnd.isBlank()) "Wybierz datę zakończenia" else "Do: ${draft.observationEnd}") }
 }
 
 @Composable
