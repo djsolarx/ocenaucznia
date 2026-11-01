@@ -6,6 +6,7 @@ import java.util.Calendar
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,6 +37,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import java.io.File
@@ -134,7 +137,7 @@ fun MonitoringManagementPanel(
                     }, modifier = Modifier.fillMaxWidth()) { Text("Dodaj nauczyciela") }
 
                     Text("Skala: 1 — duże trudności; 2 — wyraźne trudności; 3 — częściowo prawidłowo; 4 — przeważnie prawidłowo; 5 — stabilnie i samodzielnie.")
-                    Text("Średnia uwzględnia wszystkich nauczycieli. Brak oceny i „Nie obserwowano” są liczone jako 0.", style = MaterialTheme.typography.bodySmall)
+                    Text("Średnia uwzględnia wyłącznie oceny od 1 do 5. Brak oceny i „Nie obserwowano” są pomijane.", style = MaterialTheme.typography.bodySmall)
 
                     period.teachers.forEach { teacher ->
                         Card(Modifier.fillMaxWidth()) {
@@ -152,38 +155,42 @@ fun MonitoringManagementPanel(
 
                     Text("Wykresy porównawcze i średnie", style = MaterialTheme.typography.titleLarge)
                     period.observationAreas.forEach { area ->
-                        val scores = period.teachers.map { teacher ->
-                            teacher.ratings.firstOrNull { it.areaId == area || it.areaName == area }?.rating ?: 0
+                        val scores = period.teachers.mapNotNull { teacher ->
+                            teacher.ratings.firstOrNull { it.areaId == area || it.areaName == area }
+                                ?.takeIf { !it.notObserved }?.rating?.takeIf { it in 1..5 }
                         }
-                        val average = if (scores.isEmpty()) 0.0 else scores.average()
+                        val average = scores.takeIf { it.isNotEmpty() }?.average()
                         Card(Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                                 Text(area, style = MaterialTheme.typography.titleSmall)
-                                Text("Średnia: ${String.format(Locale("pl", "PL"), "%.2f", average)} / 5")
-                                MonitoringBar((average / 5.0).toFloat())
+                                Text(if (average == null) "Średnia: brak ocen" else "Średnia: ${String.format(Locale("pl", "PL"), "%.2f", average)} / 5")
+                                if (average != null) MonitoringBar((average / 5.0).toFloat(), Color(0xFF247B55))
                                 period.teachers.forEach { teacher ->
-                                    val score = teacher.ratings.firstOrNull { it.areaId == area || it.areaName == area }?.rating ?: 0
+                                    val rating = teacher.ratings.firstOrNull { it.areaId == area || it.areaName == area }
+                                    val score = rating?.rating?.takeIf { !rating.notObserved && it in 1..5 }
+                                    val teacherColor = monitoringTeacherColor(period.teachers.indexOf(teacher))
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text(teacher.name, modifier = Modifier.weight(1f))
-                                        Text(if (score == 0) "0 — brak oceny" else "$score / 5")
+                                        Text(teacher.name, modifier = Modifier.weight(1f), color = teacherColor)
+                                        Text(score?.let { "$it / 5" } ?: if (rating?.notObserved == true) "Nie obserwowano" else "Brak oceny")
                                     }
-                                    MonitoringBar(score / 5f)
+                                    if (score != null) MonitoringBar(score / 5f, teacherColor)
                                 }
                             }
                         }
                     }
 
                     val allScores = period.teachers.flatMap { teacher ->
-                        period.observationAreas.map { area ->
-                            teacher.ratings.firstOrNull { it.areaId == area || it.areaName == area }?.rating ?: 0
+                        period.observationAreas.mapNotNull { area ->
+                            teacher.ratings.firstOrNull { it.areaId == area || it.areaName == area }
+                                ?.takeIf { !it.notObserved }?.rating?.takeIf { it in 1..5 }
                         }
                     }
-                    val averageOverall = if (allScores.isEmpty()) null else allScores.average()
+                    val averageOverall = allScores.takeIf { it.isNotEmpty() }?.average()
                     Card(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                             Text("Średnia ogólna okresu", style = MaterialTheme.typography.titleMedium)
                             Text(if (averageOverall == null) "Brak ocen." else "${String.format(Locale("pl", "PL"), "%.2f", averageOverall)} / 5")
-                            if (averageOverall != null) MonitoringBar((averageOverall / 5.0).toFloat())
+                            if (averageOverall != null) MonitoringBar((averageOverall / 5.0).toFloat(), Color(0xFF247B55))
                         }
                     }
                 }
@@ -334,7 +341,14 @@ fun MonitoringManagementPanel(
 }
 
 @Composable
-private fun MonitoringBar(value: Float) {
+
+private fun monitoringTeacherColor(index: Int): Color = listOf(
+    Color(0xFF247B55), Color(0xFF1976D2), Color(0xFF7E57C2),
+    Color(0xFFE67E22), Color(0xFFD81B60), Color(0xFF00897B),
+    Color(0xFF5D4037), Color(0xFF546E7A)
+)[index.mod(8)]
+
+private fun MonitoringBar(value: Float, barColor: Color = Color(0xFF247B55)) {
     Box(Modifier.fillMaxWidth().height(8.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))) {
         Box(Modifier.fillMaxWidth(value.coerceIn(0f, 1f)).fillMaxHeight().background(MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp)))
     }
