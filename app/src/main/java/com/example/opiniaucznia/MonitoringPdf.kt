@@ -41,7 +41,7 @@ fun writeMonitoringPdf(context: Context, output: OutputStream, studentName: Stri
     fun startPage() {
         if (page != null) {
             c!!.drawLine(margin, footerY, pageW - margin, footerY, p(7f, border))
-            c!!.drawText("Karta Monitoringu Ucznia | Gabinet Psychologiczny Paweł Gębicki | www.pggp.pl | 2026 |" , margin, pageH - 27f, p(5.5f, muted))
+            c!!.drawText("Karta Monitoringu Ucznia | Gabinet Psychologiczny Paweł Gębicki | www.pggp.pl | 2026", margin, pageH - 27f, p(5.5f, muted))
             c!!.drawText("Wygenerowano: " + SimpleDateFormat("dd.MM.yyyy", Locale("pl", "PL")).format(Date()) + " r. | Dokument poufny", margin, pageH - 16f, p(6f, muted))
             val label = "Strona $pageNo"
             c!!.drawText(label, pageW - margin - p(7f, muted).measureText(label), pageH - 18f, p(7f, muted))
@@ -181,7 +181,7 @@ fun writeMonitoringObservationCardPdf(context: Context, output: OutputStream, st
     fun startPage() {
         if (page != null) {
             canvas!!.drawLine(margin, bottom, pageW - margin, bottom, p(7f, border))
-            canvas!!.drawText("Karta Monitoringu Ucznia | Gabinet Psychologiczny Paweł Gębicki | www.pggp.pl | 2026 | Wersja " + BuildConfig.VERSION_NAME, margin, pageH - 27f, p(5.5f, muted))
+            canvas!!.drawText("Karta Monitoringu Ucznia | Gabinet Psychologiczny Paweł Gębicki | www.pggp.pl | 2026", margin, pageH - 27f, p(5.5f, muted))
             canvas!!.drawText("Wygenerowano: " + SimpleDateFormat("dd.MM.yyyy", Locale("pl", "PL")).format(Date()) + " r. | Dokument poufny", margin, pageH - 16f, p(6f, muted))
             doc.finishPage(page!!)
         }
