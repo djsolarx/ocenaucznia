@@ -13,7 +13,7 @@ import java.util.Date
 import java.util.Locale
 
 /** Osobny raport PDF monitoringu; niezależny od raportu „Ocena ucznia”. */
-fun writeMonitoringPdf(context: Context, output: OutputStream, studentName: String, period: MonitoringPeriod) {
+fun writeMonitoringPdf(context: Context, output: OutputStream, studentName: String, period: MonitoringPeriod, comparisonPeriods: List<MonitoringPeriod> = listOf(period)) {
     val doc = PdfDocument()
     val pageW = 595
     val pageH = 842
@@ -106,14 +106,20 @@ fun writeMonitoringPdf(context: Context, output: OutputStream, studentName: Stri
     text("Data wygenerowania: " + SimpleDateFormat("dd.MM.yyyy", Locale("pl", "PL")).format(Date()), 8f, muted, gap = 8f)
 
     section("2. Średnie wyniki według obszarów")
-    text("Skala 1–5. Brak oceny oraz „Nie obserwowano” są liczone jako 0 w średniej.", 8.3f, muted, gap = 5f)
+    text("Skala 1–5. Brak oceny oraz „Nie obserwowano” są pomijane w średniej.", 8.3f, muted, gap = 5f)
     period.observationAreas.forEach { area ->
-        val scores = period.teachers.map { t -> t.ratings.firstOrNull { it.areaId == area || it.areaName == area }?.rating ?: 0 }
-        val avg = if (scores.isEmpty()) 0.0 else scores.average()
+        val scores = period.teachers.mapNotNull { t ->
+            t.ratings.firstOrNull { it.areaId == area || it.areaName == area }
+                ?.takeIf { !it.notObserved }?.rating?.takeIf { it in 1..5 }
+        }
+        val avg = scores.takeIf { it.isNotEmpty() }?.average() ?: 0.0
         bar(area, avg, "Średnia: " + String.format(Locale("pl", "PL"), "%.2f", avg) + " / 5; nauczyciele: " + period.teachers.size)
     }
     val allScores = period.teachers.flatMap { t ->
-        period.observationAreas.map { area -> t.ratings.firstOrNull { it.areaId == area || it.areaName == area }?.rating ?: 0 }
+        period.observationAreas.mapNotNull { area ->
+            t.ratings.firstOrNull { it.areaId == area || it.areaName == area }
+                ?.takeIf { !it.notObserved }?.rating?.takeIf { it in 1..5 }
+        }
     }
     if (allScores.isNotEmpty()) text("Średnia ogólna okresu: " + String.format(Locale("pl", "PL"), "%.2f", allScores.average()) + " / 5", 10f, navy, true, gap = 8f)
     else text("Nie wprowadzono jeszcze ocen nauczycieli.", 9f, muted, gap = 8f)
@@ -137,9 +143,72 @@ fun writeMonitoringPdf(context: Context, output: OutputStream, studentName: Stri
         if (teacher.generalComment.isNotBlank()) text("Komentarz ogólny: " + teacher.generalComment, 8.5f, ink, indent = 8f, gap = 3f)
         y += 5f
     }
-    section("4. Wnioski z monitoringu")
+    val orderedComparisons = comparisonPeriods
+        .distinctBy { it.id }
+        .sortedWith(compareBy<MonitoringPeriod> { it.startDate.ifBlank { it.createdAt } }.thenBy { it.createdAt })
+    if (orderedComparisons.size >= 2 && period.observationAreas.isNotEmpty()) {
+        section("4. Porównanie pomiarów")
+        text("Porównanie średnich ocen w tych samych obszarach. Brak oceny i „Nie obserwowano” są pomijane.", 8f, muted, gap = 4f)
+        ensure(170f)
+        val chartTop = y
+        val chartBottom = chartTop + 118f
+        val chartLeft = margin + 24f
+        val chartRight = pageW - margin - 8f
+        val chartColors = listOf(
+            Color.rgb(25, 118, 210), Color.rgb(126, 87, 194), Color.rgb(230, 126, 34),
+            Color.rgb(0, 137, 123), Color.rgb(84, 110, 122), Color.rgb(93, 64, 55),
+            Color.rgb(57, 73, 171), Color.rgb(0, 121, 107)
+        )
+        for (score in 1..5) {
+            val gy = chartBottom - (score - 1) / 4f * (chartBottom - chartTop)
+            c!!.drawLine(chartLeft, gy, chartRight, gy, p(6f, border))
+            c!!.drawText(score.toString(), margin + 4f, gy + 2f, p(7f, muted))
+        }
+        val chartSeries = orderedComparisons.map { measure ->
+            period.observationAreas.map { area ->
+                measure.teachers.mapNotNull { teacher ->
+                    teacher.ratings.firstOrNull { it.areaId == area || it.areaName == area }
+                        ?.takeIf { !it.notObserved }?.rating?.takeIf { it in 1..5 }
+                }.takeIf { it.isNotEmpty() }?.average()?.toFloat()
+            }
+        }
+        chartSeries.forEachIndexed { seriesIndex, values ->
+            val points = values.mapIndexedNotNull { index, value ->
+                value?.let {
+                    val x = if (values.size <= 1) (chartLeft + chartRight) / 2f
+                    else chartLeft + index.toFloat() / (values.size - 1) * (chartRight - chartLeft)
+                    val yy = chartBottom - ((it - 1f) / 4f) * (chartBottom - chartTop)
+                    index to Offset(x, yy)
+                }
+            }
+            val color = chartColors[seriesIndex % chartColors.size]
+            points.zipWithNext().forEach { (a, b) ->
+                if (b.first == a.first + 1) c!!.drawLine(color, a.second.x, a.second.y, b.second.x, b.second.y, p(2.8f, color))
+            }
+            points.forEach { c!!.drawCircle(color, 3.2f, it.second.x, it.second.y, p(3.2f, color)) }
+        }
+        y = chartBottom + 10f
+        period.observationAreas.forEachIndexed { index, area ->
+            val shortArea = if (area.length > 28) area.take(25) + "..." else area
+            val xx = if (period.observationAreas.size <= 1) (chartLeft + chartRight) / 2f
+                else chartLeft + index.toFloat() / (period.observationAreas.size - 1) * (chartRight - chartLeft)
+            c!!.drawText(shortArea, (xx - 18f).coerceAtLeast(margin), y + 7f, p(5.8f, muted))
+        }
+        y += 17f
+        orderedComparisons.forEachIndexed { index, measure ->
+            val values = chartSeries[index].filterNotNull()
+            val avg = values.takeIf { it.isNotEmpty() }?.average()
+            val color = chartColors[index % chartColors.size]
+            c!!.drawRect(margin, y + 1f, margin + 8f, y + 8f, p(7f, color))
+            val label = measure.title + " (" + measure.startDate.ifBlank { measure.createdAt } + ") — średnia: " +
+                (avg?.let { String.format(Locale("pl", "PL"), "%.2f", it) } ?: "brak danych") + "/5"
+            text(label, 7.6f, color, indent = 13f, gap = 1f)
+        }
+        y += 4f
+    }
+    section("5. Wnioski z monitoringu")
     text(period.summary.ifBlank { "Nie uzupełniono wniosków z monitoringu." }, 9f, ink, gap = 7f)
-    section("5. Zalecenia do dalszej pracy")
+    section("6. Zalecenia do dalszej pracy")
     text(period.recommendations.ifBlank { "Nie uzupełniono zaleceń." }, 9f, ink, gap = 8f)
     text("Dokument pomocniczy do analizy obserwacji. Wnioski należy interpretować z uwzględnieniem jakości i kompletności danych.", 7.5f, muted, gap = 5f)
 
