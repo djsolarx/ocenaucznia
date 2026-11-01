@@ -397,14 +397,13 @@ fun MonitoringManagementPanel(
     }
 }
 
-@Composable
-
 private fun monitoringTeacherColor(index: Int): Color = listOf(
     Color(0xFF247B55), Color(0xFF1976D2), Color(0xFF7E57C2),
     Color(0xFFE67E22), Color(0xFFD81B60), Color(0xFF00897B),
     Color(0xFF5D4037), Color(0xFF546E7A)
 )[index.mod(8)]
 
+@Composable
 private fun MonitoringBar(value: Float, barColor: Color = Color(0xFF247B55)) {
     Box(Modifier.fillMaxWidth().height(8.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))) {
         Box(Modifier.fillMaxWidth(value.coerceIn(0f, 1f)).fillMaxHeight().background(barColor, RoundedCornerShape(8.dp)))
