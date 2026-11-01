@@ -580,7 +580,7 @@ fun OpinionApp() {
             append("1. Pisz po polsku, profesjonalnie, rzeczowo, neutralnie i zwięźle.\n")
             append("2. Korzystaj wyłącznie z danych z formularza. Nie dopisuj faktów ani nie stawiaj nieuzasadnionych diagnoz.\n")
             append("3. Zastosuj tytuł: Wnioski do dalszej pracy z uczniem.\n")
-            append("4. Podziel tekst na ponumerowane sekcje, np. 1. Obszary wymagające wsparcia, 2. Zalecane działania w szkole, 3. Wskazówki do dalszej obserwacji. Uwzględniaj tylko sekcje uzasadnione danymi.\n")
+            append("4. Zawsze wygeneruj sekcję 3. Wskazówki do dalszej obserwacji. Oprzyj ją wyłącznie na dostępnych danych; jeśli danych jest mało, wskaż neutralne, konkretne zachowania do obserwowania bez dopisywania przyczyn. Pozostałe sekcje uwzględniaj, gdy uzasadniają je dane.\n")
             append("5. Każdy nagłówek sekcji umieść w osobnym wierszu. Pod nagłówkiem dodaj krótki akapit wyjaśniający, jeśli pozwalają na to dane.\n")
             append("6. Zalecenia przedstawiaj w postaci listy. Każde zalecenie zapisuj w osobnym wierszu, zaczynając od '- '.\n")
             append("7. Akapity i punkty listy powinny się uzupełniać, a nie powtarzać. Unikaj długich bloków tekstu i stosuj puste wiersze między sekcjami.\n")
@@ -958,13 +958,6 @@ fun OpinionApp() {
                     )
                 }
                 Text(status, style = MaterialTheme.typography.bodySmall)
-                Text(
-                    text = "Wersja ${BuildConfig.VERSION_NAME}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                )
             }
         }
     } else if (isIndicatorPage) {
@@ -1098,13 +1091,6 @@ fun OpinionApp() {
                     }
                 }
                 Text(status, style = MaterialTheme.typography.bodySmall)
-                Text(
-                    text = "Wersja ${BuildConfig.VERSION_NAME}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                )
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedButton(onClick = { page = when { page == 0 -> -1; page == conclusionsPage -> if (indicators.isNotEmpty()) conclusionsPage - 1 else 1; page == summaryPage -> conclusionsPage; else -> page - 1 } }, modifier = Modifier.weight(1f)) { Text(if (page == 0) "Strona główna" else "Poprzednia") }
                     Button(onClick = {
