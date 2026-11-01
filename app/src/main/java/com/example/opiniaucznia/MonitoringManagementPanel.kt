@@ -288,7 +288,6 @@ fun MonitoringManagementPanel(
                                             Text("Zmiana względem poprzedniego: " + (if (delta > 0) "+" else "") + String.format(Locale("pl", "PL"), "%.2f", delta) + " pkt", style = MaterialTheme.typography.bodySmall)
                                         }
                                     }
-                                    Text("Istotność statystyczna: nie obliczono jej. Do wiarygodnej oceny istotności potrzebny jest odpowiedni test statystyczny i dane na poziomie obserwacji.", style = MaterialTheme.typography.bodySmall)
                                 }
                             }
                         }
