@@ -23,6 +23,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
@@ -68,6 +70,8 @@ fun MonitoringManagementPanel(
     var teacherName by remember { mutableStateOf("") }
     var teacherRole by remember { mutableStateOf("") }
     var teacherDate by remember { mutableStateOf("") }
+    var showPreviousTeacherMenu by remember { mutableStateOf(false) }
+    var teacherToDelete by remember { mutableStateOf<MonitoringTeacher?>(null) }
     var editingTeacherId by remember { mutableStateOf("") }
     var exportPeriod by remember { mutableStateOf<MonitoringPeriod?>(null) }
     var exportBlankCard by remember { mutableStateOf(false) }
@@ -142,7 +146,10 @@ fun MonitoringManagementPanel(
                     period.teachers.forEach { teacher ->
                         Card(Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                Text(teacher.name, style = MaterialTheme.typography.titleMedium)
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(teacher.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                                    TextButton(onClick = { teacherToDelete = teacher }) { Text("✕ Usuń") }
+                                }
                                 Text(listOf(teacher.role, teacher.observationDate).filter { it.isNotBlank() }.joinToString(" • "))
                                 Text("Wprowadzone oceny: ${teacher.ratings.count { it.rating != null }} / ${period.observationAreas.size}")
                                 if (teacher.generalComment.isNotBlank()) Text("Komentarz: ${teacher.generalComment}")
@@ -164,7 +171,7 @@ fun MonitoringManagementPanel(
                             Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                                 Text(area, style = MaterialTheme.typography.titleSmall)
                                 Text(if (average == null) "Średnia: brak ocen" else "Średnia: ${String.format(Locale("pl", "PL"), "%.2f", average)} / 5")
-                                if (average != null) MonitoringBar((average / 5.0).toFloat(), Color(0xFF247B55))
+                                if (average != null) MonitoringBar((average / 5.0).toFloat(), Color(0xFFD32F2F))
                                 period.teachers.forEach { teacher ->
                                     val rating = teacher.ratings.firstOrNull { it.areaId == area || it.areaName == area }
                                     val score = rating?.rating?.takeIf { !rating.notObserved && it in 1..5 }
@@ -247,7 +254,7 @@ fun MonitoringManagementPanel(
                         Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                             Text("Średnia ogólna okresu", style = MaterialTheme.typography.titleMedium)
                             Text(if (averageOverall == null) "Brak ocen." else "${String.format(Locale("pl", "PL"), "%.2f", averageOverall)} / 5")
-                            if (averageOverall != null) MonitoringBar((averageOverall / 5.0).toFloat(), Color(0xFF247B55))
+                            if (averageOverall != null) MonitoringBar((averageOverall / 5.0).toFloat(), Color(0xFFD32F2F))
                         }
                     }
                 }
@@ -299,12 +306,58 @@ fun MonitoringManagementPanel(
         }
     }
 
+    if (teacherToDelete != null && selectedPeriod != null) {
+        val target = teacherToDelete!!
+        AlertDialog(
+            onDismissRequest = { teacherToDelete = null },
+            title = { Text("Usunąć nauczyciela z okresu?") },
+            text = { Text("Nauczyciel „${target.name}” wraz z ocenami i komentarzami zostanie usunięty wyłącznie z okresu „${selectedPeriod.title}”.") },
+            confirmButton = {
+                Button(onClick = {
+                    val changedPeriod = selectedPeriod.copy(teachers = selectedPeriod.teachers.filterNot { it.id == target.id })
+                    persist(monitoring.copy(periods = monitoring.periods.map { if (it.id == changedPeriod.id) changedPeriod else it }), "Usunięto nauczyciela z bieżącego okresu.")
+                    teacherToDelete = null
+                }) { Text("Usuń") }
+            },
+            dismissButton = { TextButton(onClick = { teacherToDelete = null }) { Text("Anuluj") } }
+        )
+    }
+
     if (showAddTeacher && selectedPeriod != null) {
         AlertDialog(
             onDismissRequest = { showAddTeacher = false },
             title = { Text("Dodaj nauczyciela") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val previousTeachers = monitoring.periods
+                        .filter { it.id != selectedPeriod.id }
+                        .flatMap { it.teachers }
+                        .distinctBy { it.name.trim().lowercase(Locale.getDefault()) + "|" + it.role.trim().lowercase(Locale.getDefault()) }
+                        .filterNot { candidate ->
+                            selectedPeriod.teachers.any {
+                                it.name.trim().equals(candidate.name.trim(), ignoreCase = true) &&
+                                    it.role.trim().equals(candidate.role.trim(), ignoreCase = true)
+                            }
+                        }
+                    if (previousTeachers.isNotEmpty()) {
+                        Column {
+                            OutlinedButton(onClick = { showPreviousTeacherMenu = true }, modifier = Modifier.fillMaxWidth()) {
+                                Text(if (teacherName.isBlank()) "Wybierz nauczyciela z poprzedniego okresu" else "Wybrano: $teacherName")
+                            }
+                            DropdownMenu(expanded = showPreviousTeacherMenu, onDismissRequest = { showPreviousTeacherMenu = false }) {
+                                previousTeachers.forEach { previousTeacher ->
+                                    DropdownMenuItem(
+                                        text = { Text(listOf(previousTeacher.name, previousTeacher.role).filter { it.isNotBlank() }.joinToString(" • ")) },
+                                        onClick = {
+                                            teacherName = previousTeacher.name
+                                            teacherRole = previousTeacher.role
+                                            showPreviousTeacherMenu = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
                     OutlinedTextField(value = teacherName, onValueChange = { teacherName = it }, label = { Text("Imię i nazwisko") }, singleLine = true)
                     OutlinedTextField(value = teacherRole, onValueChange = { teacherRole = it }, label = { Text("Rola / przedmiot / funkcja") }, singleLine = true)
                     OutlinedButton(onClick = { val calendar = Calendar.getInstance(); teacherDate.split("-").mapNotNull { it.toIntOrNull() }.takeIf { it.size == 3 }?.let { calendar.set(it[0], it[1] - 1, it[2]) }; DatePickerDialog(context, { _, y, m, d -> teacherDate = "%04d-%02d-%02d".format(y, m + 1, d) }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show() }, modifier = Modifier.fillMaxWidth()) { Text("Data obserwacji: " + teacherDate.ifBlank { "wybierz z kalendarza" }) }
@@ -399,7 +452,7 @@ fun MonitoringManagementPanel(
 
 private fun monitoringTeacherColor(index: Int): Color = listOf(
     Color(0xFF247B55), Color(0xFF1976D2), Color(0xFF7E57C2),
-    Color(0xFFE67E22), Color(0xFFD81B60), Color(0xFF00897B),
+    Color(0xFFE67E22), Color(0xFF00897B), Color(0xFF3949AB),
     Color(0xFF5D4037), Color(0xFF546E7A)
 )[index.mod(8)]
 
