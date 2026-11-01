@@ -56,6 +56,10 @@ fun MonitoringScreen(
     }
     var showAddDialog by remember { mutableStateOf(false) }
     var periodToDelete by remember { mutableStateOf<MonitoringPeriod?>(null) }
+    var periodToEdit by remember { mutableStateOf<MonitoringPeriod?>(null) }
+    var editTitle by remember { mutableStateOf("") }
+    var editStartDate by remember { mutableStateOf("") }
+    var editEndDate by remember { mutableStateOf("") }
     var title by remember { mutableStateOf("") }
     var startDate by remember { mutableStateOf("") }
     var endDate by remember { mutableStateOf("") }
@@ -300,6 +304,14 @@ $observationSource
                                 Text("Od: ${period.startDate.ifBlank { "nie podano" }}")
                                 Text("Do: ${period.endDate.ifBlank { "nie podano" }}")
                                 Text("Nauczyciele: ${period.teachers.size}")
+                                OutlinedButton(onClick = {
+                                    periodToEdit = period
+                                    editTitle = period.title
+                                    editStartDate = period.startDate
+                                    editEndDate = period.endDate
+                                }, modifier = Modifier.fillMaxWidth()) {
+                                    Text("Edytuj okres obserwacji")
+                                }
                                 OutlinedButton(onClick = { periodToDelete = period }, modifier = Modifier.fillMaxWidth()) {
                                     Text("Usuń okres obserwacji")
                                 }
@@ -309,7 +321,6 @@ $observationSource
                 }
             }
 
-            Text("Program Karta Monitoringu Ucznia na licencji freeware | Gabinet Psychologiczny Paweł Gębicki | www.pggp.pl | 2026", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("Wygenerowano: ${SimpleDateFormat("dd.MM.yyyy", Locale("pl", "PL")).format(Date())} r. • Dokument poufny", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
             Button(onClick = { showManagementPanel = true }, modifier = Modifier.fillMaxWidth()) {
@@ -320,6 +331,52 @@ $observationSource
                 Text(status, style = MaterialTheme.typography.bodyMedium)
             }
         }
+    }
+
+    if (periodToEdit != null) {
+        val target = periodToEdit!!
+        AlertDialog(
+            onDismissRequest = { periodToEdit = null },
+            title = { Text("Edytuj okres obserwacji") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(value = editTitle, onValueChange = { editTitle = it }, label = { Text("Nazwa okresu") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedButton(onClick = {
+                        val calendar = Calendar.getInstance()
+                        editStartDate.split("-").mapNotNull { it.toIntOrNull() }.takeIf { it.size == 3 }?.let { calendar.set(it[0], it[1] - 1, it[2]) }
+                        DatePickerDialog(context, { _, year, month, day -> editStartDate = "%04d-%02d-%02d".format(year, month + 1, day) }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show()
+                    }, modifier = Modifier.fillMaxWidth()) { Text("Data rozpoczęcia: ${editStartDate.ifBlank { "wybierz z kalendarza" }}") }
+                    OutlinedButton(onClick = {
+                        val calendar = Calendar.getInstance()
+                        editEndDate.split("-").mapNotNull { it.toIntOrNull() }.takeIf { it.size == 3 }?.let { calendar.set(it[0], it[1] - 1, it[2]) }
+                        DatePickerDialog(context, { _, year, month, day -> editEndDate = "%04d-%02d-%02d".format(year, month + 1, day) }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show()
+                    }, modifier = Modifier.fillMaxWidth()) { Text("Data zakończenia: ${editEndDate.ifBlank { "wybierz z kalendarza" }}") }
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    if (editTitle.isBlank() || editStartDate.isBlank()) {
+                        status = "Podaj nazwę i datę rozpoczęcia okresu."
+                    } else {
+                        fun dateKey(value: String): Int = value.split("-").mapNotNull { it.toIntOrNull() }
+                            .let { if (it.size == 3) it[0] * 10000 + it[1] * 100 + it[2] else 0 }
+                        if (editEndDate.isNotBlank() && dateKey(editEndDate) < dateKey(editStartDate)) {
+                            status = "Data zakończenia nie może być wcześniejsza niż data rozpoczęcia."
+                        } else {
+                            val updated = monitoring.copy(periods = monitoring.periods.map {
+                                if (it.id == target.id) it.copy(title = editTitle.trim(), startDate = editStartDate.trim(), endDate = editEndDate.trim()) else it
+                            })
+                            if (store.save(studentId, updated)) {
+                                monitoring = updated
+                                status = "Zaktualizowano okres obserwacji."
+                                periodToEdit = null
+                            } else status = "Nie udało się zapisać zmian okresu."
+                        }
+                    }
+                }) { Text("Zapisz zmiany") }
+            },
+            dismissButton = { TextButton(onClick = { periodToEdit = null }) { Text("Anuluj") } }
+        )
     }
 
     if (periodToDelete != null) {
@@ -428,6 +485,7 @@ $observationSource
                         if (title.isBlank() || startDate.isBlank()) {
                             status = "Podaj nazwę i datę rozpoczęcia okresu."
                         } else {
+                            val template = monitoring.periods.lastOrNull { it.observationAreas.isNotEmpty() }
                             val period = MonitoringPeriod(
                                 id = UUID.randomUUID().toString(),
                                 title = title.trim(),
@@ -436,7 +494,10 @@ $observationSource
                                 createdAt = SimpleDateFormat(
                                     "yyyy-MM-dd HH:mm",
                                     Locale.getDefault()
-                                ).format(Date())
+                                ).format(Date()),
+                                observationAreas = template?.observationAreas.orEmpty(),
+                                cardContent = template?.cardContent.orEmpty(),
+                                teachers = emptyList()
                             )
                             val updated = monitoring.copy(
                                 periods = monitoring.periods + period
