@@ -197,16 +197,19 @@ fun MonitoringManagementPanel(
                         }
                     }
 
+                    val allOrderedPeriods = monitoring.periods
+                        .distinctBy { it.id }
+                        .sortedWith(compareBy<MonitoringPeriod> { it.startDate.ifBlank { it.createdAt } }.thenBy { it.createdAt })
+                    val periodsThroughSelected = allOrderedPeriods.takeWhile { it.id != period.id } + listOf(period)
                     var showTrendChart by remember(period.id) { mutableStateOf(false) }
-                    val orderedPeriods = monitoring.periods.sortedWith(compareBy<MonitoringPeriod> { it.startDate.ifBlank { it.createdAt } }.thenBy { it.createdAt })
-                    if (orderedPeriods.size >= 2) {
+                    if (periodsThroughSelected.size >= 2) {
                         OutlinedButton(onClick = { showTrendChart = !showTrendChart }, modifier = Modifier.fillMaxWidth()) {
-                            Text(if (showTrendChart) "Ukryj wykres zmian w czasie" else "Pokaż wykres liniowy zmian w czasie")
+                            Text(if (showTrendChart) "Ukryj wykres porównania pytań" else "Pokaż wykres liniowy zmian w czasie")
                         }
                         if (showTrendChart) {
-                            val comparisonAreas = orderedPeriods.flatMap { it.observationAreas }.distinct()
-                            val series = comparisonAreas.map { area ->
-                                orderedPeriods.map { measurement ->
+                            val comparisonAreas = periodsThroughSelected.flatMap { it.observationAreas }.distinct()
+                            val periodSeries = periodsThroughSelected.map { measurement ->
+                                comparisonAreas.map { area ->
                                     val ratings = measurement.teachers.mapNotNull { teacher ->
                                         teacher.ratings.firstOrNull { it.areaId == area || it.areaName == area }
                                             ?.takeIf { !it.notObserved }?.rating?.takeIf { it in 1..5 }
@@ -214,78 +217,79 @@ fun MonitoringManagementPanel(
                                     ratings.takeIf { it.isNotEmpty() }?.average()?.toFloat()
                                 }
                             }
-                            val colors = comparisonAreas.indices.map { monitoringTeacherColor(it + 1) }
-                            val overallMeans = orderedPeriods.map { measurement ->
-                                val ratings = measurement.teachers.flatMap { teacher ->
-                                    measurement.observationAreas.mapNotNull { area ->
-                                        teacher.ratings.firstOrNull { it.areaId == area || it.areaName == area }
-                                            ?.takeIf { !it.notObserved }?.rating?.takeIf { it in 1..5 }
-                                    }
-                                }
-                                ratings.takeIf { it.isNotEmpty() }?.average()
-                            }
+                            val colors = periodsThroughSelected.indices.map { monitoringTeacherColor(it) }
                             Card(Modifier.fillMaxWidth()) {
                                 Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text("Zmiany średnich ocen w kolejnych pomiarach", style = MaterialTheme.typography.titleMedium)
-                                    Text("Oś Y: średnia ocena (1–5). Oś X: numer pomiaru.", style = MaterialTheme.typography.bodySmall)
-                                    Canvas(Modifier.fillMaxWidth().height(245.dp)) {
-                                        val left = 34f; val right = size.width - 16f; val top = 25f; val bottom = size.height - 32f
+                                    Text("Porównanie poszczególnych pytań między pomiarami", style = MaterialTheme.typography.titleMedium)
+                                    Text("Oś Y: średnia ocena (1–5). Oś X: kolejne pytania / obszary obserwacji. Każda linia oznacza jeden pomiar.", style = MaterialTheme.typography.bodySmall)
+                                    Canvas(Modifier.fillMaxWidth().height(260.dp)) {
+                                        val left = 38f; val right = size.width - 14f; val top = 25f; val bottom = size.height - 36f
                                         val native = drawContext.canvas.nativeCanvas
-                                        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { textSize = 26f; color = android.graphics.Color.DKGRAY }
+                                        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                                            textSize = 23f
+                                            color = android.graphics.Color.DKGRAY
+                                        }
                                         for (value in 1..5) {
                                             val y = bottom - (value - 1) / 4f * (bottom - top)
                                             drawLine(Color.LightGray, Offset(left, y), Offset(right, y), strokeWidth = 1f)
-                                            native.drawText(value.toString(), 7f, y + 8f, paint)
+                                            native.drawText(value.toString(), 8f, y + 7f, paint)
                                         }
-                                        orderedPeriods.indices.forEach { index ->
-                                            val x = if (orderedPeriods.size <= 1) (left + right) / 2f else left + index.toFloat() / (orderedPeriods.size - 1) * (right - left)
-                                            native.drawText((index + 1).toString(), x - 7f, size.height - 5f, paint)
+                                        comparisonAreas.indices.forEach { index ->
+                                            val x = if (comparisonAreas.size <= 1) (left + right) / 2f
+                                                else left + index.toFloat() / (comparisonAreas.size - 1) * (right - left)
+                                            native.drawText((index + 1).toString(), x - 5f, size.height - 7f, paint)
                                         }
-                                        series.forEachIndexed { seriesIndex, values ->
+                                        periodSeries.forEachIndexed { seriesIndex, values ->
                                             val points = values.mapIndexedNotNull { index, value ->
                                                 value?.let {
-                                                    val x = if (orderedPeriods.size <= 1) (left + right) / 2f else left + index.toFloat() / (orderedPeriods.size - 1) * (right - left)
+                                                    val x = if (comparisonAreas.size <= 1) (left + right) / 2f
+                                                        else left + index.toFloat() / (comparisonAreas.size - 1) * (right - left)
                                                     val y = bottom - ((it - 1f) / 4f) * (bottom - top)
                                                     index to Offset(x, y)
                                                 }
                                             }
-                                            points.zipWithNext().forEach { (a, b) -> if (b.first == a.first + 1) drawLine(colors[seriesIndex], a.second, b.second, strokeWidth = 3f, cap = StrokeCap.Round) }
+                                            points.zipWithNext().forEach { (a, b) ->
+                                                if (b.first == a.first + 1) drawLine(colors[seriesIndex], a.second, b.second, strokeWidth = 3f, cap = StrokeCap.Round)
+                                            }
                                             points.forEach { point ->
                                                 drawCircle(colors[seriesIndex], radius = 5f, center = point.second)
-                                                val label = String.format(Locale("pl", "PL"), "%.2f", values[point.first])
+                                                val value = values[point.first] ?: return@forEach
+                                                val label = String.format(Locale("pl", "PL"), "%.2f", value)
                                                 val labelWidth = paint.measureText(label)
                                                 val labelX = (point.second.x - labelWidth / 2f).coerceIn(left, right - labelWidth)
-                                                val labelY = if (seriesIndex % 2 == 0 || point.second.y < top + 20f) point.second.y + 22f else point.second.y - 10f
+                                                val labelY = if (seriesIndex % 2 == 0 || point.second.y < top + 20f) point.second.y + 21f else point.second.y - 9f
                                                 paint.color = colors[seriesIndex].toArgb()
                                                 native.drawText(label, labelX, labelY, paint)
                                                 paint.color = android.graphics.Color.DKGRAY
                                             }
                                         }
                                     }
-                                    Text("Numer pomiaru:", style = MaterialTheme.typography.titleSmall)
-                                    orderedPeriods.forEachIndexed { index, measurement ->
-                                        Text("${index + 1} — ${measurement.title} (${measurement.startDate.ifBlank { measurement.createdAt }})", style = MaterialTheme.typography.bodySmall)
-                                    }
-                                    Text("Legenda obszarów:", style = MaterialTheme.typography.titleSmall)
+                                    Text("Pytania / obszary na osi X:", style = MaterialTheme.typography.titleSmall)
                                     comparisonAreas.forEachIndexed { index, area ->
-                                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                            Text(area, color = colors[index], style = MaterialTheme.typography.bodyMedium)
-                                            series[index].drop(1).forEachIndexed { offset, value ->
-                                                val previous = series[index][offset]
-                                                if (previous != null && value != null) {
-                                                    val delta = value - previous
-                                                    Text("Zmiana pomiaru ${offset + 1} → ${offset + 2}: " + (if (delta > 0) "+" else "") + String.format(Locale("pl", "PL"), "%.2f", delta) + " pkt", style = MaterialTheme.typography.bodySmall)
-                                                }
-                                            }
-                                        }
+                                        Text("${index + 1} — $area", style = MaterialTheme.typography.bodySmall)
                                     }
-                                    HorizontalDivider()
-                                    Text("Średnia ogólna i zmiana między pomiarami", style = MaterialTheme.typography.titleSmall)
-                                    overallMeans.forEachIndexed { index, mean ->
-                                        Text("Pomiar ${index + 1}: " + (mean?.let { String.format(Locale("pl", "PL"), "%.2f", it) + "/5" } ?: "brak danych"), style = MaterialTheme.typography.bodySmall)
-                                        if (index > 0 && mean != null && overallMeans[index - 1] != null) {
-                                            val delta = mean - overallMeans[index - 1]!!
-                                            Text("Zmiana względem poprzedniego: " + (if (delta > 0) "+" else "") + String.format(Locale("pl", "PL"), "%.2f", delta) + " pkt", style = MaterialTheme.typography.bodySmall)
+                                    Text("Legenda pomiarów:", style = MaterialTheme.typography.titleSmall)
+                                    periodsThroughSelected.forEachIndexed { index, measurement ->
+                                        Text(
+                                            text = "Pomiar ${index + 1}: ${measurement.title} (${measurement.startDate.ifBlank { measurement.createdAt }})",
+                                            color = colors[index],
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    }
+                                    if (periodSeries.size >= 2) {
+                                        HorizontalDivider()
+                                        Text("Zmiana średniej dla każdego pytania", style = MaterialTheme.typography.titleSmall)
+                                        comparisonAreas.forEachIndexed { areaIndex, area ->
+                                            val first = periodSeries.firstOrNull()?.getOrNull(areaIndex)
+                                            val latest = periodSeries.lastOrNull()?.getOrNull(areaIndex)
+                                            val delta = if (first != null && latest != null) latest - first else null
+                                            Text(
+                                                "$area: " + (delta?.let {
+                                                    "zmiana od pomiaru 1 do ${periodSeries.lastIndex + 1}: " +
+                                                        (if (it > 0) "+" else "") + String.format(Locale("pl", "PL"), "%.2f", it) + " pkt"
+                                                } ?: "brak danych do porównania"),
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
                                         }
                                     }
                                 }
