@@ -201,8 +201,8 @@ fun MonitoringManagementPanel(
                         .distinctBy { it.id }
                         .sortedWith(compareBy<MonitoringPeriod> { it.startDate.ifBlank { it.createdAt } }.thenBy { it.createdAt })
                     val comparisonPeriodsThroughSelected = allOrderedPeriods.takeWhile { it.id != period.id } + listOf(period)
-                    var showTrendChart by remember(period.id) { mutableStateOf(false) }
-                    if (comparisonPeriodsThroughSelected.size >= 2) {
+                    var showTrendChart by remember(period.id) { mutableStateOf(true) }
+                    if (comparisonPeriodsThroughSelected.isNotEmpty()) {
                         OutlinedButton(onClick = { showTrendChart = !showTrendChart }, modifier = Modifier.fillMaxWidth()) {
                             Text(if (showTrendChart) "Ukryj wykres porównania pytań" else "Pokaż wykres liniowy zmian w czasie")
                         }
