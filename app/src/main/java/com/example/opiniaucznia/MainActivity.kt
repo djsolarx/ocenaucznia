@@ -921,6 +921,30 @@ fun OpinionApp() {
                                 }
                             }
 
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = {
+                                        loadArchivedRecord(record)
+                                        page = conclusionsPage
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                ) { Text("Osoby opracowujące opinię") }
+                                OutlinedButton(
+                                    onClick = {
+                                        activeRecordId = recordId
+                                        monitoringStudentId = recordId
+                                        monitoringStudentName = recordName
+                                        monitoringObservationSource = StudentDraft.fromJson(record.optString("draft")).conclusions.trim()
+                                        loadArchivedRecord(record)
+                                        page = -3
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                ) { Text("Monitoring ucznia") }
+                            }
+
                             TextButton(
                                 onClick = { startTransfer("send", record.toString()) },
                                 modifier = Modifier.fillMaxWidth()
