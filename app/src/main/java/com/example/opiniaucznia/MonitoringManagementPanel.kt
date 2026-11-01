@@ -407,6 +407,6 @@ private fun monitoringTeacherColor(index: Int): Color = listOf(
 
 private fun MonitoringBar(value: Float, barColor: Color = Color(0xFF247B55)) {
     Box(Modifier.fillMaxWidth().height(8.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))) {
-        Box(Modifier.fillMaxWidth(value.coerceIn(0f, 1f)).fillMaxHeight().background(MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp)))
+        Box(Modifier.fillMaxWidth(value.coerceIn(0f, 1f)).fillMaxHeight().background(barColor, RoundedCornerShape(8.dp)))
     }
 }
