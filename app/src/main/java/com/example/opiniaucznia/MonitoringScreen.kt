@@ -54,6 +54,23 @@ fun MonitoringScreen(
     var monitoring by remember(studentId) {
         mutableStateOf(store.load(studentId))
     }
+    LaunchedEffect(studentId) {
+        val latest = store.load(studentId)
+        val template = latest.periods.firstOrNull { it.observationAreas.isNotEmpty() }
+        if (template != null) {
+            val normalized = latest.copy(periods = latest.periods.map { period ->
+                if (period.observationAreas.isEmpty()) {
+                    period.copy(
+                        observationAreas = template.observationAreas,
+                        cardContent = template.cardContent
+                    )
+                } else period
+            })
+            if (normalized != latest && store.save(studentId, normalized)) {
+                monitoring = normalized
+            }
+        }
+    }
     var showAddDialog by remember { mutableStateOf(false) }
     var periodToDelete by remember { mutableStateOf<MonitoringPeriod?>(null) }
     var periodToEdit by remember { mutableStateOf<MonitoringPeriod?>(null) }
