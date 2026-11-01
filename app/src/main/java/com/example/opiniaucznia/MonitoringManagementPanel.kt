@@ -179,6 +179,63 @@ fun MonitoringManagementPanel(
                         }
                     }
 
+                    var showTrendChart by remember(period.id) { mutableStateOf(false) }
+                    val orderedPeriods = monitoring.periods.sortedWith(compareBy<MonitoringPeriod> { it.startDate.ifBlank { it.createdAt } }.thenBy { it.createdAt })
+                    if (orderedPeriods.size >= 2) {
+                        OutlinedButton(onClick = { showTrendChart = !showTrendChart }, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (showTrendChart) "Ukryj wykres zmian w czasie" else "Pokaż wykres liniowy zmian w czasie")
+                        }
+                        if (showTrendChart) {
+                            val series = orderedPeriods.map { measurement ->
+                                period.observationAreas.map { area ->
+                                    val ratings = measurement.teachers.mapNotNull { teacher ->
+                                        teacher.ratings.firstOrNull { it.areaId == area || it.areaName == area }
+                                            ?.takeIf { !it.notObserved }?.rating?.takeIf { it in 1..5 }
+                                    }
+                                    ratings.takeIf { it.isNotEmpty() }?.average()?.toFloat()
+                                }
+                            }
+                            val colors = orderedPeriods.indices.map { monitoringTeacherColor(it) }
+                            Card(Modifier.fillMaxWidth()) {
+                                Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text("Zmiany ocen w kolejnych pomiarach", style = MaterialTheme.typography.titleMedium)
+                                    Canvas(Modifier.fillMaxWidth().height(220.dp)) {
+                                        val left = 24f; val right = size.width - 12f; val top = 12f; val bottom = size.height - 18f
+                                        for (value in 1..5) {
+                                            val y = bottom - (value - 1) / 4f * (bottom - top)
+                                            drawLine(Color.LightGray, Offset(left, y), Offset(right, y), strokeWidth = 1f)
+                                        }
+                                        series.forEachIndexed { seriesIndex, values ->
+                                            val points = values.mapIndexedNotNull { index, value ->
+                                                value?.let {
+                                                    val x = if (values.size <= 1) (left + right) / 2f else left + index.toFloat() / (values.size - 1) * (right - left)
+                                                    val y = bottom - ((it - 1f) / 4f) * (bottom - top)
+                                                    index to Offset(x, y)
+                                                }
+                                            }
+                                            points.zipWithNext().forEach { (a, b) -> if (b.first == a.first + 1) drawLine(colors[seriesIndex], a.second, b.second, strokeWidth = 4f, cap = StrokeCap.Round) }
+                                            points.forEach { drawCircle(colors[seriesIndex], radius = 6f, center = it.second) }
+                                        }
+                                    }
+                                    Text("Obszary: " + period.observationAreas.joinToString(" • "), style = MaterialTheme.typography.bodySmall)
+                                    orderedPeriods.forEachIndexed { index, measurement ->
+                                        val values = series[index].filterNotNull()
+                                        val mean = values.takeIf { it.isNotEmpty() }?.average()
+                                        val previous = if (index > 0) series[index - 1].filterNotNull().takeIf { it.isNotEmpty() }?.average() else null
+                                        val change = if (mean != null && previous != null) mean - previous else null
+                                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Box(Modifier.padding(top = 4.dp).height(12.dp).fillMaxWidth(0.04f).background(colors[index], RoundedCornerShape(4.dp)))
+                                            Column(Modifier.weight(1f)) {
+                                                Text(measurement.title + " • " + measurement.startDate.ifBlank { measurement.createdAt }, color = colors[index], style = MaterialTheme.typography.titleSmall)
+                                                Text("Średnia: " + (mean?.let { String.format(Locale("pl", "PL"), "%.2f", it) } ?: "brak danych") + " / 5" + (change?.let { " • zmiana: " + (if (it > 0) "+" else "") + String.format(Locale("pl", "PL"), "%.2f", it) + " pkt" } ?: ""), style = MaterialTheme.typography.bodySmall)
+                                                Text("Istotność statystyczna: nie oceniano — brak testu statystycznego.", style = MaterialTheme.typography.bodySmall)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                     val allScores = period.teachers.flatMap { teacher ->
                         period.observationAreas.mapNotNull { area ->
                             teacher.ratings.firstOrNull { it.areaId == area || it.areaName == area }
