@@ -250,8 +250,7 @@ fun writeMonitoringPdf(context: Context, output: OutputStream, studentName: Stri
                 }
             }
         }
-        text("Istotność statystyczna: nie została obliczona. Same średnie nie wystarczają do rzetelnego testu istotności; nie należy interpretować zmiany jako statystycznie istotnej bez odpowiedniego testu i danych.", 8f, muted, gap = 5f)
-    }
+}
     section("5. Wnioski z monitoringu")
     text(period.summary.ifBlank { "Nie uzupełniono wniosków z monitoringu." }, 9f, ink, gap = 7f)
     section("6. Zalecenia do dalszej pracy")
