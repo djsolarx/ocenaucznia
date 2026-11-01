@@ -203,7 +203,7 @@ fun writeMonitoringPdf(context: Context, output: OutputStream, studentName: Stri
                 val label = String.format(Locale("pl", "PL"), "%.2f", values[point.first])
                 val labelPaint = p(6.5f, color, true)
                 val labelX = (point.second.x - labelPaint.measureText(label) / 2f).coerceIn(chartLeft, chartRight - labelPaint.measureText(label))
-                val labelY = if (point.second.y - 6f < chartTop + 5f) point.second.y + 11f else point.second.y - 5f
+                val labelY = if (areaIndex % 2 == 0 || point.second.y - 6f < chartTop + 5f) point.second.y + 11f else point.second.y - 5f
                 c!!.drawText(label, labelX, labelY, labelPaint)
             }
         }
