@@ -151,65 +151,106 @@ fun writeMonitoringPdf(context: Context, output: OutputStream, studentName: Stri
     val orderedComparisons = comparisonPeriods
         .distinctBy { it.id }
         .sortedWith(compareBy<MonitoringPeriod> { it.startDate.ifBlank { it.createdAt } }.thenBy { it.createdAt })
-    if (orderedComparisons.size >= 2 && period.observationAreas.isNotEmpty()) {
-        section("4. Porównanie pomiarów")
-        text("Porównanie średnich ocen w tych samych obszarach. Brak oceny i „Nie obserwowano” są pomijane.", 8f, muted, gap = 4f)
-        ensure(170f)
-        val chartTop = y
-        val chartBottom = chartTop + 118f
-        val chartLeft = margin + 24f
-        val chartRight = pageW - margin - 8f
+    val comparisonAreas = orderedComparisons.flatMap { it.observationAreas }.distinct()
+    if (orderedComparisons.size >= 2 && comparisonAreas.isNotEmpty()) {
+        section("4. Porównanie zmian między pomiarami")
+        text("Wykres: średnia ocena w każdym obszarze w kolejnych pomiarach.", 8.5f, muted, gap = 2f)
+        text("Oś Y: średnia ocena (skala 1–5). Oś X: numer pomiaru.", 8f, muted, gap = 4f)
+        ensure(205f)
+        val chartTop = y + 8f
+        val chartBottom = chartTop + 112f
+        val chartLeft = margin + 31f
+        val chartRight = pageW - margin - 12f
         val chartColors = listOf(
             Color.rgb(25, 118, 210), Color.rgb(126, 87, 194), Color.rgb(230, 126, 34),
             Color.rgb(0, 137, 123), Color.rgb(84, 110, 122), Color.rgb(93, 64, 55),
             Color.rgb(57, 73, 171), Color.rgb(0, 121, 107)
         )
-        for (score in 1..5) {
-            val gy = chartBottom - (score - 1) / 4f * (chartBottom - chartTop)
-            c!!.drawLine(chartLeft, gy, chartRight, gy, p(6f, border))
-            c!!.drawText(score.toString(), margin + 4f, gy + 2f, p(7f, muted))
-        }
-        val chartSeries = orderedComparisons.map { measure ->
-            period.observationAreas.map { area ->
+        val chartValues = comparisonAreas.map { area ->
+            orderedComparisons.map { measure ->
                 measure.teachers.mapNotNull { teacher ->
                     teacher.ratings.firstOrNull { it.areaId == area || it.areaName == area }
                         ?.takeIf { !it.notObserved }?.rating?.takeIf { it in 1..5 }
                 }.takeIf { it.isNotEmpty() }?.average()?.toFloat()
             }
         }
-        chartSeries.forEachIndexed { seriesIndex, values ->
+        for (score in 1..5) {
+            val gy = chartBottom - (score - 1) / 4f * (chartBottom - chartTop)
+            c!!.drawLine(chartLeft, gy, chartRight, gy, p(6f, border))
+            c!!.drawText(score.toString(), margin + 14f, gy + 2f, p(7f, muted))
+        }
+        c!!.drawText("Średnia ocena", margin, chartTop - 1f, p(6.8f, muted))
+        orderedComparisons.indices.forEach { index ->
+            val x = if (orderedComparisons.size <= 1) (chartLeft + chartRight) / 2f
+                else chartLeft + index.toFloat() / (orderedComparisons.size - 1) * (chartRight - chartLeft)
+            c!!.drawText((index + 1).toString(), x - 2f, chartBottom + 12f, p(7f, muted))
+        }
+        chartValues.forEachIndexed { areaIndex, values ->
+            val color = chartColors[areaIndex % chartColors.size]
             val points = values.mapIndexedNotNull { index, value ->
                 value?.let {
-                    val x = if (values.size <= 1) (chartLeft + chartRight) / 2f
-                    else chartLeft + index.toFloat() / (values.size - 1) * (chartRight - chartLeft)
+                    val x = if (orderedComparisons.size <= 1) (chartLeft + chartRight) / 2f
+                        else chartLeft + index.toFloat() / (orderedComparisons.size - 1) * (chartRight - chartLeft)
                     val yy = chartBottom - ((it - 1f) / 4f) * (chartBottom - chartTop)
                     index to Offset(x, yy)
                 }
             }
-            val color = chartColors[seriesIndex % chartColors.size]
             points.zipWithNext().forEach { (a, b) ->
-                if (b.first == a.first + 1) c!!.drawLine(a.second.x, a.second.y, b.second.x, b.second.y, p(2.8f, color))
+                if (b.first == a.first + 1) c!!.drawLine(a.second.x, a.second.y, b.second.x, b.second.y, p(2.3f, color))
             }
-            points.forEach { c!!.drawCircle(it.second.x, it.second.y, 3.2f, p(3.2f, color)) }
+            points.forEach { point ->
+                c!!.drawCircle(point.second.x, point.second.y, 3.1f, p(3.1f, color))
+                val label = String.format(Locale("pl", "PL"), "%.2f", values[point.first])
+                val labelPaint = p(6.5f, color, true)
+                val labelX = (point.second.x - labelPaint.measureText(label) / 2f).coerceIn(chartLeft, chartRight - labelPaint.measureText(label))
+                val labelY = if (point.second.y - 6f < chartTop + 5f) point.second.y + 11f else point.second.y - 5f
+                c!!.drawText(label, labelX, labelY, labelPaint)
+            }
         }
-        y = chartBottom + 10f
-        period.observationAreas.forEachIndexed { index, area ->
-            val shortArea = if (area.length > 28) area.take(25) + "..." else area
-            val xx = if (period.observationAreas.size <= 1) (chartLeft + chartRight) / 2f
-                else chartLeft + index.toFloat() / (period.observationAreas.size - 1) * (chartRight - chartLeft)
-            c!!.drawText(shortArea, (xx - 18f).coerceAtLeast(margin), y + 7f, p(5.8f, muted))
-        }
-        y += 17f
+        y = chartBottom + 24f
+        text("Numer pomiaru:", 7.7f, ink, true, gap = 1f)
         orderedComparisons.forEachIndexed { index, measure ->
-            val values = chartSeries[index].filterNotNull()
-            val avg = values.takeIf { it.isNotEmpty() }?.average()
-            val color = chartColors[index % chartColors.size]
-            c!!.drawRect(margin, y + 1f, margin + 8f, y + 8f, p(7f, color))
-            val label = measure.title + " (" + measure.startDate.ifBlank { measure.createdAt } + ") — średnia: " +
-                (avg?.let { String.format(Locale("pl", "PL"), "%.2f", it) } ?: "brak danych") + "/5"
-            text(label, 7.6f, color, indent = 13f, gap = 1f)
+            text((index + 1).toString() + " — " + measure.title + " (" + measure.startDate.ifBlank { measure.createdAt } + ")", 7.6f, muted, indent = 8f, gap = 1f)
         }
-        y += 4f
+        text("Legenda obszarów:", 7.7f, ink, true, gap = 1f)
+        comparisonAreas.forEachIndexed { index, area ->
+            val color = chartColors[index % chartColors.size]
+            val values = chartValues[index]
+            c!!.drawRect(margin, y + 1f, margin + 7f, y + 8f, p(7f, color))
+            text(area, 7.5f, color, indent = 12f, gap = 1f)
+            values.drop(1).forEachIndexed { offset, value ->
+                val before = values[offset]
+                if (before != null && value != null) {
+                    val delta = value - before
+                    val label = "Pomiar ${offset + 2} względem ${offset + 1}: " +
+                        (if (delta > 0) "+" else "") + String.format(Locale("pl", "PL"), "%.2f", delta) + " pkt"
+                    text(label, 7.2f, muted, indent = 12f, gap = 1f)
+                }
+            }
+        }
+        val overallMeans = orderedComparisons.map { measure ->
+            val vals = measure.teachers.flatMap { teacher ->
+                comparisonAreas.mapNotNull { area ->
+                    teacher.ratings.firstOrNull { it.areaId == area || it.areaName == area }
+                        ?.takeIf { !it.notObserved }?.rating?.takeIf { it in 1..5 }
+                }
+            }
+            vals.takeIf { it.isNotEmpty() }?.average()
+        }
+        section("Statystyki porównania")
+        overallMeans.forEachIndexed { index, mean ->
+            text("Pomiar ${index + 1}: średnia ogólna " +
+                (mean?.let { String.format(Locale("pl", "PL"), "%.2f", it) + "/5" } ?: "brak danych"), 8f, ink, gap = 1f)
+            if (index > 0) {
+                val previous = overallMeans[index - 1]
+                if (mean != null && previous != null) {
+                    val delta = mean - previous
+                    text("Zmiana względem pomiaru ${index}: " + (if (delta > 0) "+" else "") +
+                        String.format(Locale("pl", "PL"), "%.2f", delta) + " pkt.", 8f, muted, indent = 8f, gap = 1f)
+                }
+            }
+        }
+        text("Istotność statystyczna: nie została obliczona. Same średnie nie wystarczają do rzetelnego testu istotności; nie należy interpretować zmiany jako statystycznie istotnej bez odpowiedniego testu i danych.", 8f, muted, gap = 5f)
     }
     section("5. Wnioski z monitoringu")
     text(period.summary.ifBlank { "Nie uzupełniono wniosków z monitoringu." }, 9f, ink, gap = 7f)
