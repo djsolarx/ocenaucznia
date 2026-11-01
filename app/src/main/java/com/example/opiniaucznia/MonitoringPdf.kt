@@ -6,6 +6,7 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.Color
+import androidx.compose.ui.geometry.Offset
 import android.graphics.pdf.PdfDocument
 import java.io.OutputStream
 import java.text.SimpleDateFormat
