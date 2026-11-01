@@ -89,7 +89,7 @@ fun writeMonitoringPdf(context: Context, output: OutputStream, studentName: Stri
         val top = y
         c!!.drawRoundRect(RectF(margin, top, pageW - margin, top + 7f), 4f, 4f, p(7f, pale))
         val w = contentW * (value / 5.0).toFloat().coerceIn(0f, 1f)
-        if (w > 0f) c!!.drawRoundRect(RectF(margin, top, margin + w, top + 7f), 4f, 4f, p(7f, teal))
+        if (w > 0f) c!!.drawRoundRect(RectF(margin, top, margin + w, top + 7f), 4f, 4f, p(7f, Color.rgb(211, 47, 47)))
         y += 12f
         text(detail, 7.8f, muted, gap = 4f)
     }
@@ -112,8 +112,12 @@ fun writeMonitoringPdf(context: Context, output: OutputStream, studentName: Stri
             t.ratings.firstOrNull { it.areaId == area || it.areaName == area }
                 ?.takeIf { !it.notObserved }?.rating?.takeIf { it in 1..5 }
         }
-        val avg = scores.takeIf { it.isNotEmpty() }?.average() ?: 0.0
-        bar(area, avg, "Średnia: " + String.format(Locale("pl", "PL"), "%.2f", avg) + " / 5; nauczyciele: " + period.teachers.size)
+        val avg = scores.takeIf { it.isNotEmpty() }?.average()
+        if (avg == null) {
+            text(area + " — brak ocen do obliczenia średniej.", 8.8f, ink, true, gap = 2f)
+        } else {
+            bar(area, avg, "Średnia: " + String.format(Locale("pl", "PL"), "%.2f", avg) + " / 5; nauczyciele z oceną: " + scores.size)
+        }
     }
     val allScores = period.teachers.flatMap { t ->
         period.observationAreas.mapNotNull { area ->
@@ -134,8 +138,8 @@ fun writeMonitoringPdf(context: Context, output: OutputStream, studentName: Stri
             val r = teacher.ratings.firstOrNull { it.areaId == area || it.areaName == area }
             val result = when {
                 r?.rating != null -> r.rating.toString() + "/5"
-                r?.notObserved == true -> "Nie obserwowano (0)"
-                else -> "Brak oceny (0)"
+                r?.notObserved == true -> "Nie obserwowano"
+                else -> "Brak oceny"
             }
             text(area + " — " + result, 8.5f, ink, true, indent = 8f, gap = 1f)
             if (!r?.comment.isNullOrBlank()) text("Komentarz: " + r!!.comment, 8f, muted, indent = 16f, gap = 2f)
