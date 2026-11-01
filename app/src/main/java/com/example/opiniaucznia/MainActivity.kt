@@ -1,5 +1,6 @@
 package com.example.opiniaucznia
 
+import androidx.activity.compose.BackHandler
 import android.app.Activity
 import android.app.DatePickerDialog
 import android.content.Context
@@ -744,6 +745,18 @@ fun OpinionApp() {
     val firstIndicatorPage = 2
     val conclusionsPage = firstIndicatorPage + indicators.size
     val summaryPage = conclusionsPage + 1
+
+    BackHandler(enabled = previewFile != null || page != -1) {
+        when {
+            previewFile != null -> previewFile = null
+            page == -3 -> page = conclusionsPage
+            page == -2 -> page = -1
+            page == summaryPage -> page = conclusionsPage
+            page > 0 -> page -= 1
+            page == 0 -> page = -1
+            else -> page = -1
+        }
+    }
     val isIndicatorPage = page in firstIndicatorPage until conclusionsPage
     val indicatorIndex = page - firstIndicatorPage
     val pageTitle = when {
@@ -1158,7 +1171,7 @@ private fun AboutAppScreen(
                 title = { Text("O aplikacji", color = Color.White, fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     TextButton(onClick = onBack) {
-                        Text("OU", color = Color.White, style = MaterialTheme.typography.headlineLarge)
+                        Text("Wróć", color = Color.White, style = MaterialTheme.typography.titleMedium)
                     }
                 },
                 colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
