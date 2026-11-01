@@ -93,7 +93,7 @@ fun MonitoringManagementPanel(
         val period = exportPeriod
         if (uri != null && period != null) {
             val result = runCatching {
-                context.contentResolver.openOutputStream(uri)?.use { output -> if (exportBlankCard) writeMonitoringObservationCardPdf(context, output, studentName, period) else writeMonitoringPdf(context, output, studentName, period) }
+                context.contentResolver.openOutputStream(uri)?.use { output -> if (exportBlankCard) writeMonitoringObservationCardPdf(context, output, studentName, period) else writeMonitoringPdf(context, output, studentName, period, monitoring.periods) }
                     ?: error("Nie udało się otworzyć pliku docelowego.")
             }
             status = if (result.isSuccess) "Zapisano osobny raport monitoringu w PDF."
@@ -294,7 +294,7 @@ fun MonitoringManagementPanel(
                     val safe = studentName.trim().replace(Regex("[^A-Za-z0-9_-]"), "_").ifBlank { "ucznia" }
                     val file = File(context.cacheDir, "Monitoring_${safe}_druk.pdf")
                     runCatching {
-                        FileOutputStream(file).use { writeMonitoringPdf(context, it, studentName, period) }
+                        FileOutputStream(file).use { writeMonitoringPdf(context, it, studentName, period, monitoring.periods) }
                         check(file.exists() && file.length() > 0L) { "Plik PDF jest pusty." }
                         printPdfFile(context, file, "Monitoring ucznia - $studentName")
                     }.onSuccess { status = "Przygotowano osobny raport do wydruku." }
