@@ -200,15 +200,15 @@ fun MonitoringManagementPanel(
                     val allOrderedPeriods = monitoring.periods
                         .distinctBy { it.id }
                         .sortedWith(compareBy<MonitoringPeriod> { it.startDate.ifBlank { it.createdAt } }.thenBy { it.createdAt })
-                    val periodsThroughSelected = allOrderedPeriods.takeWhile { it.id != period.id } + listOf(period)
+                    val comparisonPeriodsThroughSelected = allOrderedPeriods.takeWhile { it.id != period.id } + listOf(period)
                     var showTrendChart by remember(period.id) { mutableStateOf(false) }
-                    if (periodsThroughSelected.size >= 2) {
+                    if (comparisonPeriodsThroughSelected.size >= 2) {
                         OutlinedButton(onClick = { showTrendChart = !showTrendChart }, modifier = Modifier.fillMaxWidth()) {
                             Text(if (showTrendChart) "Ukryj wykres porównania pytań" else "Pokaż wykres liniowy zmian w czasie")
                         }
                         if (showTrendChart) {
-                            val comparisonAreas = periodsThroughSelected.flatMap { it.observationAreas }.distinct()
-                            val periodSeries = periodsThroughSelected.map { measurement ->
+                            val comparisonAreas = comparisonPeriodsThroughSelected.flatMap { it.observationAreas }.distinct()
+                            val periodSeries = comparisonPeriodsThroughSelected.map { measurement ->
                                 comparisonAreas.map { area ->
                                     val ratings = measurement.teachers.mapNotNull { teacher ->
                                         teacher.ratings.firstOrNull { it.areaId == area || it.areaName == area }
@@ -217,7 +217,7 @@ fun MonitoringManagementPanel(
                                     ratings.takeIf { it.isNotEmpty() }?.average()?.toFloat()
                                 }
                             }
-                            val colors = periodsThroughSelected.indices.map { monitoringTeacherColor(it) }
+                            val colors = comparisonPeriodsThroughSelected.indices.map { monitoringTeacherColor(it) }
                             Card(Modifier.fillMaxWidth()) {
                                 Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text("Porównanie poszczególnych pytań między pomiarami", style = MaterialTheme.typography.titleMedium)
@@ -269,7 +269,7 @@ fun MonitoringManagementPanel(
                                         Text("${index + 1} — $area", style = MaterialTheme.typography.bodySmall)
                                     }
                                     Text("Legenda pomiarów:", style = MaterialTheme.typography.titleSmall)
-                                    periodsThroughSelected.forEachIndexed { index, measurement ->
+                                    comparisonPeriodsThroughSelected.forEachIndexed { index, measurement ->
                                         Text(
                                             text = "Pomiar ${index + 1}: ${measurement.title} (${measurement.startDate.ifBlank { measurement.createdAt }})",
                                             color = colors[index],
