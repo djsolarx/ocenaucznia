@@ -309,7 +309,7 @@ $observationSource
                 }
             }
 
-            Text("Program Karta Monitoringu Ucznia na licencji freeware | Gabinet Psychologiczny Paweł Gębicki | www.pggp.pl | 2026 | Wersja programu: ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Program Karta Monitoringu Ucznia na licencji freeware | Gabinet Psychologiczny Paweł Gębicki | www.pggp.pl | 2026", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("Wygenerowano: ${SimpleDateFormat("dd.MM.yyyy", Locale("pl", "PL")).format(Date())} r. • Dokument poufny", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
             Button(onClick = { showManagementPanel = true }, modifier = Modifier.fillMaxWidth()) {
