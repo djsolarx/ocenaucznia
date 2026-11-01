@@ -255,7 +255,7 @@ fun MonitoringManagementPanel(
                                                 val label = String.format(Locale("pl", "PL"), "%.2f", values[point.first])
                                                 val labelWidth = paint.measureText(label)
                                                 val labelX = (point.second.x - labelWidth / 2f).coerceIn(left, right - labelWidth)
-                                                val labelY = if (point.second.y < top + 20f) point.second.y + 22f else point.second.y - 10f
+                                                val labelY = if (seriesIndex % 2 == 0 || point.second.y < top + 20f) point.second.y + 22f else point.second.y - 10f
                                                 paint.color = colors[seriesIndex].toArgb()
                                                 native.drawText(label, labelX, labelY, paint)
                                                 paint.color = android.graphics.Color.DKGRAY
