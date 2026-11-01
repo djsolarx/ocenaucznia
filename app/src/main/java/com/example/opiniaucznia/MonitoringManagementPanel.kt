@@ -157,13 +157,13 @@ fun MonitoringManagementPanel(
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Column(Modifier.weight(1f)) {
                                         Text(teacher.name, style = MaterialTheme.typography.titleMedium)
-                                        if (!isCurrentPeriodTeacher) Text("Poprzedni pomiar: \${teacherPeriod.title}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        if (!isCurrentPeriodTeacher) Text("Poprzedni pomiar: ${teacherPeriod.title}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                     if (isCurrentPeriodTeacher) TextButton(onClick = { teacherToDelete = teacher }) { Text("✕ Usuń") }
                                 }
                                 Text(listOf(teacher.role, teacher.observationDate).filter { it.isNotBlank() }.joinToString(" • "))
-                                Text("Wprowadzone oceny: \${teacher.ratings.count { it.rating != null }} / \${teacherPeriod.observationAreas.size}")
-                                if (teacher.generalComment.isNotBlank()) Text("Komentarz: \${teacher.generalComment}")
+                                Text("Wprowadzone oceny: ${teacher.ratings.count { it.rating != null }} / ${teacherPeriod.observationAreas.size}")
+                                if (teacher.generalComment.isNotBlank()) Text("Komentarz: ${teacher.generalComment}")
                                 if (isCurrentPeriodTeacher) OutlinedButton(onClick = { editingTeacherId = teacher.id; showEditTeacher = true }, modifier = Modifier.fillMaxWidth()) {
                                     Text("Edytuj oceny i komentarze")
                                 }
@@ -264,7 +264,7 @@ fun MonitoringManagementPanel(
                                     }
                                     Text("Numer pomiaru:", style = MaterialTheme.typography.titleSmall)
                                     orderedPeriods.forEachIndexed { index, measurement ->
-                                        Text("\${index + 1} — \${measurement.title} (\${measurement.startDate.ifBlank { measurement.createdAt }})", style = MaterialTheme.typography.bodySmall)
+                                        Text("${index + 1} — ${measurement.title} (${measurement.startDate.ifBlank { measurement.createdAt }})", style = MaterialTheme.typography.bodySmall)
                                     }
                                     Text("Legenda obszarów:", style = MaterialTheme.typography.titleSmall)
                                     comparisonAreas.forEachIndexed { index, area ->
@@ -274,7 +274,7 @@ fun MonitoringManagementPanel(
                                                 val previous = series[index][offset]
                                                 if (previous != null && value != null) {
                                                     val delta = value - previous
-                                                    Text("Zmiana pomiaru \${offset + 1} → \${offset + 2}: " + (if (delta > 0) "+" else "") + String.format(Locale("pl", "PL"), "%.2f", delta) + " pkt", style = MaterialTheme.typography.bodySmall)
+                                                    Text("Zmiana pomiaru ${offset + 1} → ${offset + 2}: " + (if (delta > 0) "+" else "") + String.format(Locale("pl", "PL"), "%.2f", delta) + " pkt", style = MaterialTheme.typography.bodySmall)
                                                 }
                                             }
                                         }
@@ -282,7 +282,7 @@ fun MonitoringManagementPanel(
                                     HorizontalDivider()
                                     Text("Średnia ogólna i zmiana między pomiarami", style = MaterialTheme.typography.titleSmall)
                                     overallMeans.forEachIndexed { index, mean ->
-                                        Text("Pomiar \${index + 1}: " + (mean?.let { String.format(Locale("pl", "PL"), "%.2f", it) + "/5" } ?: "brak danych"), style = MaterialTheme.typography.bodySmall)
+                                        Text("Pomiar ${index + 1}: " + (mean?.let { String.format(Locale("pl", "PL"), "%.2f", it) + "/5" } ?: "brak danych"), style = MaterialTheme.typography.bodySmall)
                                         if (index > 0 && mean != null && overallMeans[index - 1] != null) {
                                             val delta = mean - overallMeans[index - 1]!!
                                             Text("Zmiana względem poprzedniego: " + (if (delta > 0) "+" else "") + String.format(Locale("pl", "PL"), "%.2f", delta) + " pkt", style = MaterialTheme.typography.bodySmall)
