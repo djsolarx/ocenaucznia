@@ -188,9 +188,9 @@ fun writeMonitoringPdf(context: Context, output: OutputStream, studentName: Stri
             }
             val color = chartColors[seriesIndex % chartColors.size]
             points.zipWithNext().forEach { (a, b) ->
-                if (b.first == a.first + 1) c!!.drawLine(color, a.second.x, a.second.y, b.second.x, b.second.y, p(2.8f, color))
+                if (b.first == a.first + 1) c!!.drawLine(a.second.x, a.second.y, b.second.x, b.second.y, p(2.8f, color))
             }
-            points.forEach { c!!.drawCircle(color, 3.2f, it.second.x, it.second.y, p(3.2f, color)) }
+            points.forEach { c!!.drawCircle(it.second.x, it.second.y, 3.2f, p(3.2f, color)) }
         }
         y = chartBottom + 10f
         period.observationAreas.forEachIndexed { index, area ->
