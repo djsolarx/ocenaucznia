@@ -62,6 +62,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -530,7 +531,7 @@ fun OpinionApp() {
     val monitoringStore = remember { MonitoringStore(context) }
     val indicators = remember { runCatching { assessmentStore.loadCatalog(context) }.getOrDefault(emptyList()) }
     var draft by remember { mutableStateOf(StudentDraft.fromJson(prefs.getString(DRAFT_KEY, null))) }
-    var page by remember { mutableStateOf(-1) }
+    var page by rememberSaveable { mutableStateOf(-1) }
     var status by remember { mutableStateOf("Dane są zapisywane lokalnie na tym urządzeniu.") }
     var previewFile by remember { mutableStateOf<File?>(null) }
     var showAiPromptDialog by remember { mutableStateOf(false) }
@@ -1238,14 +1239,30 @@ private fun AboutAppScreen(
     color = Color(0xFF303632)
 )
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("Mała\n5 zł", "Średnia\n10 zł", "Duża\n25 zł").forEach { amount ->
+                        listOf("Mała" to "5 zł", "Średnia" to "10 zł", "Duża" to "25 zł").forEach { (label, price) ->
                             OutlinedButton(
                                 onClick = onSupport,
                                 modifier = Modifier.weight(1f).height(76.dp),
                                 shape = RoundedCornerShape(14.dp),
-                                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = green)
+                                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = green),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp, vertical = 8.dp)
                             ) {
-                                Text(amount, textAlign = TextAlign.Center, fontWeight = FontWeight.SemiBold)
+                                Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                                    Text(
+                                        label,
+                                        textAlign = TextAlign.Center,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        style = MaterialTheme.typography.titleSmall
+                                    )
+                                    Text(
+                                        price,
+                                        textAlign = TextAlign.Center,
+                                        fontWeight = FontWeight.SemiBold,
+                                        style = MaterialTheme.typography.titleSmall
+                                    )
+                                }
                             }
                         }
                     }
