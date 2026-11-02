@@ -787,6 +787,11 @@ fun OpinionApp() {
             onOpenWebsite = {
                 runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://pggp.pl"))) }
             },
+            onOpenManual = {
+                runCatching {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://raw.githubusercontent.com/djsolarx/ocenaucznia/main/instrukcja.pdf")))
+                }
+            },
             onSupport = {
                 runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://buycoffee.to/trustmatrix"))) }
             }
@@ -1168,6 +1173,7 @@ fun OpinionApp() {
 private fun AboutAppScreen(
     onBack: () -> Unit,
     onOpenWebsite: () -> Unit,
+    onOpenManual: () -> Unit,
     onSupport: () -> Unit
 ) {
     val navy = Color(0xFF1D3D6B)
@@ -1208,6 +1214,9 @@ private fun AboutAppScreen(
                     Text("Niezależny developer i edukator", style = MaterialTheme.typography.bodyLarge)
                     Button(onClick = onOpenWebsite, modifier = Modifier.fillMaxWidth(), colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = navy)) {
                         Text("🌐  pggp.pl")
+                    }
+                    OutlinedButton(onClick = onOpenManual, modifier = Modifier.fillMaxWidth()) {
+                        Text("📘  Instrukcja obsługi (PDF)")
                     }
                 }
             }
