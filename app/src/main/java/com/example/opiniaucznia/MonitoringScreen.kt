@@ -188,7 +188,7 @@ $observationSource
                                         String(Character.toChars(number))
                                     }.getOrDefault(match.value)
                                 }.replace("&quot;", "\"").replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
-                                val normalizedText = decoded.replace(Regex("\\\\s*\\r?\\n"), "")
+                                val normalizedText = decoded.replace(Regex("\\\\\\s*\\r?\\n"), "")
                                 val firstBrace = normalizedText.indexOf('{')
                                 val lastBrace = normalizedText.lastIndexOf('}')
                                 if (firstBrace < 0 || lastBrace <= firstBrace) throw IllegalArgumentException("Brak obiektu JSON")
