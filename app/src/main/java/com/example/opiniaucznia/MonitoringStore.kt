@@ -80,13 +80,22 @@ class MonitoringStore(context: Context) {
         val archive = readArchive()
         for (i in 0 until archive.length()) {
             val record = archive.optJSONObject(i) ?: continue
-            val draft = runCatching { JSONObject(record.optString("draft")) }.getOrNull()
-                ?: continue
-            if (normalize(draft.optString("school")) != targetSchool) continue
-            // Jeśli starszy rekord nie ma zapisanej miejscowości, nie odrzucaj go:
-            // nazwa szkoły nadal musi być zgodna. Gdy obie miejscowości są znane,
-            // wymagaj zgodności, aby nie mieszać szkół o tej samej nazwie.
-            val storedTown = normalize(draft.optString("schoolTown"))
+
+            // W zależności od wersji aplikacji dane szkoły mogą być zapisane
+            // zarówno w polu draft, jak i bezpośrednio w rekordzie archiwum.
+            val draftValue = record.opt("draft")
+            val draft = when (draftValue) {
+                is JSONObject -> draftValue
+                is String -> runCatching { JSONObject(draftValue) }.getOrNull()
+                else -> null
+            }
+            val storedSchool = draft?.optString("school")
+                ?.takeIf { it.isNotBlank() }
+                ?: record.optString("school")
+            if (normalize(storedSchool) != targetSchool) continue
+
+            // Nie odrzucaj starszych rekordów bez miejscowości.
+            val storedTown = normalize(draft?.optString("schoolTown").orEmpty())
             if (targetTown.isNotBlank() && storedTown.isNotBlank() && storedTown != targetTown) continue
 
             val monitoring = StudentMonitoring.fromJson(record.optJSONObject("monitoring"))
