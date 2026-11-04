@@ -397,17 +397,23 @@ fun MonitoringManagementPanel(
                             }
                         }
                         .sortedBy { it.name.lowercase(Locale.getDefault()) }
-                    if (previousTeachers.isNotEmpty()) {
-                        Column {
-                            Text(
-                                if (schoolName.isNotBlank()) "Nauczyciele zapisani w bazie tej szkoły oraz poprzednich okresach:"
-                                else "Nauczyciele z poprzednich okresów:",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            OutlinedButton(onClick = { showPreviousTeacherMenu = true }, modifier = Modifier.fillMaxWidth()) {
-                                Text(if (teacherName.isBlank()) "Wybierz nauczyciela z listy" else "Wybrano: $teacherName")
-                            }
-                            DropdownMenu(expanded = showPreviousTeacherMenu, onDismissRequest = { showPreviousTeacherMenu = false }) {
+                    Column {
+                        Text(
+                            if (schoolName.isNotBlank()) "Wybierz nauczyciela zapisanego wcześniej w tej szkole lub w poprzednich okresach:"
+                            else "Wybierz nauczyciela z poprzednich okresów:",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        OutlinedButton(onClick = { showPreviousTeacherMenu = true }, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (teacherName.isBlank()) "Wybierz nauczyciela z listy" else "Wybrano: $teacherName")
+                        }
+                        DropdownMenu(expanded = showPreviousTeacherMenu, onDismissRequest = { showPreviousTeacherMenu = false }) {
+                            if (previousTeachers.isEmpty()) {
+                                DropdownMenuItem(
+                                    text = { Text("Brak zapisanych nauczycieli — wpisz dane poniżej") },
+                                    enabled = false,
+                                    onClick = {}
+                                )
+                            } else {
                                 previousTeachers.forEach { previousTeacher ->
                                     DropdownMenuItem(
                                         text = { Text(listOf(previousTeacher.name, previousTeacher.role).filter { it.isNotBlank() }.joinToString(" • ")) },
@@ -420,8 +426,6 @@ fun MonitoringManagementPanel(
                                 }
                             }
                         }
-                    } else if (schoolName.isNotBlank()) {
-                        Text("W bazie tej szkoły nie ma jeszcze nauczycieli z wcześniejszych monitoringów. Możesz dodać nowego poniżej.", style = MaterialTheme.typography.bodySmall)
                     }
                     OutlinedTextField(value = teacherName, onValueChange = { teacherName = it }, label = { Text("Imię i nazwisko") }, singleLine = true)
                     OutlinedTextField(value = teacherRole, onValueChange = { teacherRole = it }, label = { Text("Rola / przedmiot / funkcja") }, singleLine = true)
