@@ -73,19 +73,19 @@ fun MonitoringScreen(
             }
         }
     }
-    var showAddDialog by remember { mutableStateOf(false) }
+    var showAddDialog by rememberSaveable { mutableStateOf(false) }
     var periodToDelete by remember { mutableStateOf<MonitoringPeriod?>(null) }
     var periodToEdit by remember { mutableStateOf<MonitoringPeriod?>(null) }
-    var editTitle by remember { mutableStateOf("") }
-    var editStartDate by remember { mutableStateOf("") }
-    var editEndDate by remember { mutableStateOf("") }
-    var title by remember { mutableStateOf("") }
-    var startDate by remember { mutableStateOf("") }
-    var endDate by remember { mutableStateOf("") }
-    var status by remember { mutableStateOf("") }
-    var showPromptDialog by remember { mutableStateOf(false) }
-    var importedAreas by remember { mutableStateOf(monitoring.periods.firstOrNull { it.observationAreas.isNotEmpty() }?.observationAreas.orEmpty()) }
-    var showManagementPanel by remember { mutableStateOf(false) }
+    var editTitle by rememberSaveable { mutableStateOf("") }
+    var editStartDate by rememberSaveable { mutableStateOf("") }
+    var editEndDate by rememberSaveable { mutableStateOf("") }
+    var title by rememberSaveable { mutableStateOf("") }
+    var startDate by rememberSaveable { mutableStateOf("") }
+    var endDate by rememberSaveable { mutableStateOf("") }
+    var status by rememberSaveable { mutableStateOf("") }
+    var showPromptDialog by rememberSaveable { mutableStateOf(false) }
+    var importedAreas by rememberSaveable { mutableStateOf(monitoring.periods.firstOrNull { it.observationAreas.isNotEmpty() }?.observationAreas.orEmpty()) }
+    var showManagementPanel by rememberSaveable { mutableStateOf(false) }
     val existingCard = monitoring.periods.firstOrNull { it.observationAreas.isNotEmpty() }
     val hasMonitoringCard = existingCard != null
     val context = LocalContext.current
