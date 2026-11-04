@@ -47,6 +47,8 @@ import java.util.UUID
 fun MonitoringScreen(
     studentId: String,
     studentName: String,
+    schoolName: String,
+    schoolTown: String,
     observationSource: String,
     store: MonitoringStore,
     onBack: () -> Unit
@@ -485,6 +487,8 @@ $observationSource
                 MonitoringManagementPanel(
                     studentId = studentId,
                     studentName = studentName,
+                    schoolName = schoolName,
+                    schoolTown = schoolTown,
                     store = store,
                     initialMonitoring = monitoring,
                     onMonitoringChanged = { monitoring = it },
