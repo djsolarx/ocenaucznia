@@ -600,9 +600,9 @@ fun OpinionApp() {
     LaunchedEffect(activeRecordId) {
         prefs.edit().putString(ACTIVE_RECORD_ID_KEY, activeRecordId).apply()
     }
-    var monitoringStudentId by remember { mutableStateOf("") }
-    var monitoringStudentName by remember { mutableStateOf("") }
-    var monitoringObservationSource by remember { mutableStateOf("") }
+    var monitoringStudentId by rememberSaveable { mutableStateOf("") }
+    var monitoringStudentName by rememberSaveable { mutableStateOf("") }
+    var monitoringObservationSource by rememberSaveable { mutableStateOf("") }
 
     fun update(next: StudentDraft) {
         draft = next
