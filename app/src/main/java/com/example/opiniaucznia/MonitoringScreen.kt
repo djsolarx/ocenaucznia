@@ -221,6 +221,9 @@ $observationSource
                 Text("Obszary monitorowania:", style = MaterialTheme.typography.titleSmall)
                 importedAreas.forEachIndexed { index, area -> Text((index + 1).toString() + ". " + area) }
             }
+            if (status.isNotBlank()) {
+                Text(status, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+            }
 
             Text(
                 "Okresy obserwacji",
@@ -283,9 +286,6 @@ $observationSource
                 Text("Otwórz monitoring: oceny, średnie i raport")
             }
 
-            if (status.isNotBlank()) {
-                Text(status, style = MaterialTheme.typography.bodyMedium)
-            }
         }
     }
 
