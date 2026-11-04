@@ -82,11 +82,10 @@ fun MonitoringScreen(
     var endDate by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("") }
     var showPromptDialog by remember { mutableStateOf(false) }
-    var aiMonitoringJson by remember { mutableStateOf("") }
-    var importedAreas by remember { mutableStateOf<List<String>>(emptyList()) }
-    var selectedPeriodId by remember { mutableStateOf("") }
+    var importedAreas by remember { mutableStateOf(monitoring.periods.firstOrNull { it.observationAreas.isNotEmpty() }?.observationAreas.orEmpty()) }
     var showManagementPanel by remember { mutableStateOf(false) }
-    var validatedCardJson by remember { mutableStateOf("") }
+    val existingCard = monitoring.periods.firstOrNull { it.observationAreas.isNotEmpty() }
+    val hasMonitoringCard = existingCard != null
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
 
@@ -156,131 +155,71 @@ $observationSource
                 style = MaterialTheme.typography.bodyMedium
             )
 
-            Button(
-                onClick = { showPromptDialog = true },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = observationSource.isNotBlank(),
-                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF187A72), contentColor = Color.White
-                )
-            ) {
-                Text("Przygotuj prompt dla AI")
-            }
-
-            OutlinedTextField(
-                value = aiMonitoringJson,
-                onValueChange = { aiMonitoringJson = it },
-                label = { Text("Odpowiedź AI — wklej JSON karty monitorowania") },
-                placeholder = { Text("Wklej tutaj sam obiekt JSON zwrócony przez AI") },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 5
-            )
-
-            Button(
-                onClick = {
-                    try {
-                        val json = org.json.JSONObject(aiMonitoringJson)
-                        val areasJson = json.optJSONArray("observationAreas")
-                        val areas = if (areasJson == null) {
-                            emptyList()
-                        } else {
-                            (0 until areasJson.length())
-                                .map { areasJson.optString(it).trim() }
-                                .filter { it.isNotBlank() }
-                        }
-
-                        if (areas.size < 3) {
-                            status = "JSON jest poprawny, ale musi zawierać co najmniej 3 obszary obserwacji."
-                        } else if (areas.size > 10) {
-                            status = "JSON zawiera więcej niż 10 obszarów. Poproś AI o przygotowanie krótszej karty."
-                        } else {
-                            importedAreas = areas.distinct()
-                            validatedCardJson = json.toString(2)
-                            status = "Sprawdzono JSON. Wykryto ${importedAreas.size} obszarów. Wybierz okres obserwacji, aby zapisać kartę."
-                        }
-                    } catch (e: Exception) {
-                        status = "Nieprawidłowy JSON. Wklej sam obiekt JSON bez markdown i dodatkowego komentarza."
+            if (hasMonitoringCard) {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Obszary monitorowania są już zapisane", style = MaterialTheme.typography.titleMedium)
+                        Text("Ta sama karta obowiązuje we wszystkich okresach obserwacji. Nie trzeba ponownie generować promptu ani obszarów.")
+                        Text("Liczba obszarów: " + (existingCard?.observationAreas?.size ?: 0))
                     }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = aiMonitoringJson.isNotBlank()
-            ) {
-                Text("Sprawdź JSON karty")
-            }
-
-            if (importedAreas.isNotEmpty()) {
-                Text(
-                    "Obszary rozpoznane w JSON:",
-                    style = MaterialTheme.typography.titleSmall
-                )
-                importedAreas.forEachIndexed { index, area ->
-                    Text("${index + 1}. $area")
                 }
-            }
-            if (validatedCardJson.isNotBlank() && importedAreas.isNotEmpty()) {
-                Text(
-                    "Zapis karty w okresie obserwacji",
-                    style = MaterialTheme.typography.titleMedium
-                )
-
+            } else {
                 if (monitoring.periods.isEmpty()) {
-                    Text("Najpierw dodaj okres obserwacji.")
-                } else {
-                    monitoring.periods.forEach { period ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            TextButton(
-                                onClick = { selectedPeriodId = period.id }
-                            ) {
-                                Text(
-                                    if (selectedPeriodId == period.id) {
-                                        "✓ ${period.title}"
-                                    } else {
-                                        period.title
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    Button(
-                        onClick = {
-                            val selected = monitoring.periods.firstOrNull {
-                                it.id == selectedPeriodId
-                            }
-
-                            if (selected == null) {
-                                status = "Wybierz okres obserwacji."
+                    Text("Najpierw dodaj pierwszy okres obserwacji. Kartę obszarów przygotowuje się tylko raz.")
+                }
+                Button(
+                    onClick = { showPromptDialog = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = observationSource.isNotBlank() && monitoring.periods.isNotEmpty(),
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color(0xFF187A72), contentColor = Color.White)
+                ) { Text("Przygotuj prompt dla AI") }
+                Text("Po otrzymaniu odpowiedzi AI skopiuj cały JSON. Wróć do aplikacji i naciśnij „Zapisz obszary” — aplikacja pobierze odpowiedź bezpośrednio ze schowka.", style = MaterialTheme.typography.bodyMedium)
+                Button(
+                    onClick = {
+                        try {
+                            val clipboardText = clipboardManager.getText()?.text.orEmpty()
+                            if (clipboardText.isBlank()) {
+                                status = "Schowek jest pusty. Skopiuj najpierw odpowiedź AI w formacie JSON."
                             } else {
-                                val updatedPeriod = selected.copy(
-                                    observationAreas = importedAreas,
-                                    cardContent = validatedCardJson
-                                )
-                                val updated = monitoring.copy(
-                                    periods = monitoring.periods.map {
-                                        if (it.id == selected.id) updatedPeriod else it
-                                    }
-                                )
-
-                                if (store.save(studentId, updated)) {
-                                    monitoring = updated
-                                    status = "Zapisano kartę w okresie: ${selected.title}. Istniejące oceny nauczycieli zostały zachowane."
-                                    validatedCardJson = ""
-                                    aiMonitoringJson = ""
-                                    importedAreas = emptyList()
-                                    selectedPeriodId = ""
+                                val decoded = Regex("&#(x[0-9a-fA-F]+|[0-9]+);").replace(clipboardText) { match ->
+                                    runCatching {
+                                        val code = match.groupValues[1]
+                                        val number = if (code.startsWith("x", true)) code.substring(1).toInt(16) else code.toInt()
+                                        String(Character.toChars(number))
+                                    }.getOrDefault(match.value)
+                                }.replace("&quot;", "\"").replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
+                                val normalizedText = decoded.replace(Regex("\\\\s*\\r?\\n"), "")
+                                val firstBrace = normalizedText.indexOf('{')
+                                val lastBrace = normalizedText.lastIndexOf('}')
+                                if (firstBrace < 0 || lastBrace <= firstBrace) throw IllegalArgumentException("Brak obiektu JSON")
+                                val json = org.json.JSONObject(normalizedText.substring(firstBrace, lastBrace + 1))
+                                val areasJson = json.optJSONArray("observationAreas") ?: throw IllegalArgumentException("Brak listy observationAreas")
+                                val areas = (0 until areasJson.length()).mapNotNull { areasJson.opt(it) as? String }.map { it.trim() }.filter { it.isNotBlank() }.distinct()
+                                if (areas.size < 3) {
+                                    status = "Odpowiedź JSON zawiera mniej niż 3 prawidłowe obszary obserwacji."
+                                } else if (areas.size > 10) {
+                                    status = "Odpowiedź JSON zawiera więcej niż 10 obszarów. Poproś AI o przygotowanie krótszej karty."
                                 } else {
-                                    status = "Nie udało się zapisać karty. Sprawdź, czy rekord ucznia istnieje w archiwum."
+                                    val normalizedJson = json.toString(2)
+                                    val updated = monitoring.copy(periods = monitoring.periods.map { it.copy(observationAreas = areas, cardContent = normalizedJson) })
+                                    if (store.save(studentId, updated)) {
+                                        monitoring = updated
+                                        importedAreas = areas
+                                        status = "Zapisano " + areas.size + " obszarów. Ta sama karta będzie używana we wszystkich okresach obserwacji."
+                                    } else status = "Nie udało się zapisać obszarów. Sprawdź, czy uczeń jest zapisany w archiwum."
                                 }
                             }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Zapisz kartę w wybranym okresie")
-                    }
-                }
+                        } catch (e: Exception) {
+                            status = "Nie znaleziono poprawnego JSON-a w schowku. Skopiuj z czatu AI samą odpowiedź JSON i spróbuj ponownie."
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !hasMonitoringCard && monitoring.periods.isNotEmpty()
+                ) { Text("Zapisz obszary") }
+            }
+            if (importedAreas.isNotEmpty() && hasMonitoringCard) {
+                Text("Obszary monitorowania:", style = MaterialTheme.typography.titleSmall)
+                importedAreas.forEachIndexed { index, area -> Text((index + 1).toString() + ". " + area) }
             }
 
             Text(
@@ -417,7 +356,7 @@ $observationSource
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("Skopiuj prompt albo udostępnij go do wybranej aplikacji AI. Po uzyskaniu odpowiedzi JSON wróć tutaj i wklej ją do pola na ekranie monitoringu.")
+                    Text("Udostępnij prompt do wybranego czatu AI. Gdy AI przygotuje odpowiedź, skopiuj cały JSON, wróć do aplikacji i użyj przycisku „Zapisz obszary”. Nie trzeba niczego wklejać do pola tekstowego.")
                     OutlinedTextField(
                         value = monitoringPrompt,
                         onValueChange = {},
@@ -434,7 +373,7 @@ $observationSource
                     TextButton(
                         onClick = {
                             clipboardManager.setText(AnnotatedString(monitoringPrompt))
-                            status = "Prompt skopiowano. Wklej go do wybranego czatu AI."
+                            status = "Prompt skopiowano. Otwórz wybrany czat AI i wklej prompt."
                             showPromptDialog = false
                         }
                     ) {
