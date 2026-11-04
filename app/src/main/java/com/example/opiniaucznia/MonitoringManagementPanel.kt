@@ -65,20 +65,28 @@ fun MonitoringManagementPanel(
     onClose: () -> Unit
 ) {
     val context = LocalContext.current
+    val teacherSaver = androidx.compose.runtime.saveable.Saver<MonitoringTeacher?, String>(
+        save = { it?.toJson()?.toString().orEmpty() },
+        restore = { raw -> raw.takeIf(String::isNotBlank)?.let { MonitoringTeacher.fromJson(org.json.JSONObject(it)) } }
+    )
+    val periodSaver = androidx.compose.runtime.saveable.Saver<MonitoringPeriod?, String>(
+        save = { it?.toJson()?.toString().orEmpty() },
+        restore = { raw -> raw.takeIf(String::isNotBlank)?.let { MonitoringPeriod.fromJson(org.json.JSONObject(it)) } }
+    )
     var monitoring by remember(studentId) { mutableStateOf(initialMonitoring) }
     LaunchedEffect(initialMonitoring) { monitoring = initialMonitoring }
-    var selectedPeriodId by remember(studentId) { mutableStateOf(initialMonitoring.periods.firstOrNull()?.id.orEmpty()) }
-    var status by remember { mutableStateOf("") }
-    var showAddTeacher by remember { mutableStateOf(false) }
-    var showEditTeacher by remember { mutableStateOf(false) }
-    var teacherName by remember { mutableStateOf("") }
-    var teacherRole by remember { mutableStateOf("") }
-    var teacherDate by remember { mutableStateOf("") }
-    var showPreviousTeacherMenu by remember { mutableStateOf(false) }
-    var teacherToDelete by remember { mutableStateOf<MonitoringTeacher?>(null) }
-    var editingTeacherId by remember { mutableStateOf("") }
-    var exportPeriod by remember { mutableStateOf<MonitoringPeriod?>(null) }
-    var exportBlankCard by remember { mutableStateOf(false) }
+    var selectedPeriodId by rememberSaveable(studentId) { mutableStateOf(initialMonitoring.periods.firstOrNull()?.id.orEmpty()) }
+    var status by rememberSaveable { mutableStateOf("") }
+    var showAddTeacher by rememberSaveable { mutableStateOf(false) }
+    var showEditTeacher by rememberSaveable { mutableStateOf(false) }
+    var teacherName by rememberSaveable { mutableStateOf("") }
+    var teacherRole by rememberSaveable { mutableStateOf("") }
+    var teacherDate by rememberSaveable { mutableStateOf("") }
+    var showPreviousTeacherMenu by rememberSaveable { mutableStateOf(false) }
+    var teacherToDelete by rememberSaveable(saver = teacherSaver) { mutableStateOf<MonitoringTeacher?>(null) }
+    var editingTeacherId by rememberSaveable { mutableStateOf("") }
+    var exportPeriod by rememberSaveable(saver = periodSaver) { mutableStateOf<MonitoringPeriod?>(null) }
+    var exportBlankCard by rememberSaveable { mutableStateOf(false) }
 
     val selectedPeriod = monitoring.periods.firstOrNull { it.id == selectedPeriodId }
         ?: monitoring.periods.firstOrNull()
@@ -452,7 +460,7 @@ fun MonitoringManagementPanel(
     }
 
     if (showEditTeacher && selectedPeriod != null) {
-        var draft by remember(editingTeacherId, selectedPeriod.id) {
+        var draft by rememberSaveable(editingTeacherId, selectedPeriod.id, saver = teacherSaver) {
             mutableStateOf(selectedPeriod.teachers.firstOrNull { it.id == editingTeacherId })
         }
         AlertDialog(
