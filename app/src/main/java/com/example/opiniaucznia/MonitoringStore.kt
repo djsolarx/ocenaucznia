@@ -80,10 +80,10 @@ class MonitoringStore(context: Context) {
         val archive = readArchive()
         for (i in 0 until archive.length()) {
             val record = archive.optJSONObject(i) ?: continue
-            val draft = runCatching { StudentDraft.fromJson(record.optString("draft")) }.getOrNull()
+            val draft = runCatching { JSONObject(record.optString("draft")) }.getOrNull()
                 ?: continue
-            if (normalize(draft.school) != targetSchool) continue
-            if (targetTown.isNotBlank() && normalize(draft.schoolTown) != targetTown) continue
+            if (normalize(draft.optString("school")) != targetSchool) continue
+            if (targetTown.isNotBlank() && normalize(draft.optString("schoolTown")) != targetTown) continue
 
             val monitoring = StudentMonitoring.fromJson(record.optJSONObject("monitoring"))
             monitoring.periods.forEach { period -> teachers.addAll(period.teachers) }
