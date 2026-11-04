@@ -62,6 +62,42 @@ class MonitoringStore(context: Context) {
         }.getOrDefault(false)
     }
 
+    /**
+     * Zwraca nauczycieli, którzy uczestniczyli już w monitoringu uczniów
+     * z tej samej szkoły. Lista jest budowana z zapisanych rekordów,
+     * więc nie wymaga osobnej, ręcznie synchronizowanej bazy nauczycieli.
+     */
+    fun getTeachersForSchool(schoolName: String, schoolTown: String): List<MonitoringTeacher> {
+        if (schoolName.isBlank()) return emptyList()
+
+        fun normalize(value: String): String =
+            value.trim().replace(Regex("\\s+"), " ").lowercase(java.util.Locale.ROOT)
+
+        val targetSchool = normalize(schoolName)
+        val targetTown = normalize(schoolTown)
+        val teachers = mutableListOf<MonitoringTeacher>()
+
+        val archive = readArchive()
+        for (i in 0 until archive.length()) {
+            val record = archive.optJSONObject(i) ?: continue
+            val draft = runCatching { StudentDraft.fromJson(record.optString("draft")) }.getOrNull()
+                ?: continue
+            if (normalize(draft.school) != targetSchool) continue
+            if (targetTown.isNotBlank() && normalize(draft.schoolTown) != targetTown) continue
+
+            val monitoring = StudentMonitoring.fromJson(record.optJSONObject("monitoring"))
+            monitoring.periods.forEach { period -> teachers.addAll(period.teachers) }
+        }
+
+        return teachers
+            .filter { it.name.isNotBlank() }
+            .distinctBy {
+                it.name.trim().lowercase(java.util.Locale.ROOT) + "|" +
+                    it.role.trim().lowercase(java.util.Locale.ROOT)
+            }
+            .sortedBy { it.name.lowercase(java.util.Locale.ROOT) }
+    }
+
     fun studentExists(studentId: String): Boolean {
         if (studentId.isBlank()) return false
 
