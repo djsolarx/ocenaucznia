@@ -804,6 +804,8 @@ fun OpinionApp() {
         MonitoringScreen(
             studentId = monitoringStudentId,
             studentName = monitoringStudentName,
+            schoolName = draft.school,
+            schoolTown = draft.schoolTown,
             observationSource = monitoringObservationSource,
             store = monitoringStore,
             onBack = { page = conclusionsPage }
@@ -1080,13 +1082,10 @@ fun OpinionApp() {
                         SummaryLine("Wychowawca klasy", draft.homeroomTeacher); SummaryLine("Pedagog / pedagog specjalny", draft.pedagogue)
                         SummaryLine("Psycholog", draft.psychologist); SummaryLine("Inni nauczyciele / specjaliści", draft.otherStaff)
                         SummaryLine("Dyrektor szkoły", draft.schoolDirector)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = { saveToArchive() }, modifier = Modifier.weight(1f)) { Text("Zapisz w bazie uczniów") }
-                            Button(onClick = {
-                                val filename = "Opinia_${draft.studentName.trim().replace(Regex("[^A-Za-z0-9_-]"), "_").ifBlank { "ucznia" }}.pdf"
-                                pdfLauncher.launch(filename)
-                            }, modifier = Modifier.weight(1f)) { Text("Eksportuj PDF") }
-                        }
+                        Button(onClick = {
+                            val filename = "Opinia_${draft.studentName.trim().replace(Regex("[^A-Za-z0-9_-]"), "_").ifBlank { "ucznia" }}.pdf"
+                            pdfLauncher.launch(filename)
+                        }, modifier = Modifier.fillMaxWidth()) { Text("Eksportuj PDF") }
                         Button(
                             onClick = {
                                 val safeName = draft.studentName.trim().replace(Regex("[^A-Za-z0-9_-]"), "_").ifBlank { "ucznia" }
@@ -1128,7 +1127,12 @@ fun OpinionApp() {
                     OutlinedButton(onClick = { page = when { page == 0 -> -1; page == conclusionsPage -> if (indicators.isNotEmpty()) conclusionsPage - 1 else 1; page == summaryPage -> conclusionsPage; else -> page - 1 } }, modifier = Modifier.weight(1f)) { Text(if (page == 0) "Strona główna" else "Poprzednia") }
                     Button(onClick = {
                         prefs.edit().putString(DRAFT_KEY, draft.toJson()).apply()
-                        status = "Zapisano szkic lokalnie."
+                        if (page == conclusionsPage) {
+                            if (activeRecordId.isBlank()) activeRecordId = java.util.UUID.randomUUID().toString()
+                            saveToArchive()
+                        } else {
+                            status = "Zapisano szkic lokalnie."
+                        }
                         page = when { page == 0 -> 1; page == 1 -> if (indicators.isNotEmpty()) firstIndicatorPage else conclusionsPage; page == conclusionsPage -> summaryPage; page == summaryPage -> -1; else -> page + 1 }
                     }, modifier = Modifier.weight(1f)) { Text(when (page) { 0, 1 -> "Dalej"; conclusionsPage -> "Przejdź do podsumowania"; summaryPage -> "Zakończ"; else -> "Dalej" }) }
                 }
