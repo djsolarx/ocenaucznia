@@ -1,0 +1,360 @@
+package com.example.opiniaucznia
+
+import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.Typeface
+import android.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import android.graphics.pdf.PdfDocument
+import java.io.OutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+/** Osobny raport PDF monitoringu; niezależny od raportu „Ocena ucznia”. */
+fun writeMonitoringPdf(context: Context, output: OutputStream, studentName: String, period: MonitoringPeriod, comparisonPeriods: List<MonitoringPeriod> = listOf(period)) {
+    val doc = PdfDocument()
+    val pageW = 595
+    val pageH = 842
+    val margin = 38f
+    val contentW = pageW - margin * 2
+    val footerY = pageH - 42f
+    val navy = Color.rgb(25, 51, 83)
+    val ink = Color.rgb(32, 51, 77)
+    val muted = Color.rgb(95, 108, 123)
+    val border = Color.rgb(213, 222, 231)
+    val pale = Color.rgb(238, 244, 249)
+    val teal = Color.rgb(49, 128, 130)
+    val font = runCatching { Typeface.createFromAsset(context.assets, "fonts/AvenirLTProBook.otf") }
+        .getOrElse { Typeface.create("sans-serif", Typeface.NORMAL) }
+    val boldFont = runCatching { Typeface.createFromAsset(context.assets, "fonts/AvenirLTProMedium.otf") }
+        .getOrElse { Typeface.create("sans-serif-medium", Typeface.NORMAL) }
+    fun p(size: Float, color: Int = ink, bold: Boolean = false) = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textSize = size; this.color = color; typeface = if (bold) boldFont else font
+    }
+    var pageNo = 0
+    var page: PdfDocument.Page? = null
+    var c: Canvas? = null
+    var y = 28f
+
+    fun startPage() {
+        if (page != null) {
+            c!!.drawLine(margin, footerY, pageW - margin, footerY, p(7f, border))
+            c!!.drawText("Karta Monitoringu Ucznia | Gabinet Psychologiczny Paweł Gębicki | www.pggp.pl | 2026", margin, pageH - 27f, p(5.5f, muted))
+            c!!.drawText("Wygenerowano: " + SimpleDateFormat("dd.MM.yyyy", Locale("pl", "PL")).format(Date()) + " r. | Dokument poufny", margin, pageH - 16f, p(6f, muted))
+            val label = "Strona $pageNo"
+            c!!.drawText(label, pageW - margin - p(7f, muted).measureText(label), pageH - 18f, p(7f, muted))
+            doc.finishPage(page!!)
+        }
+        pageNo++
+        page = doc.startPage(PdfDocument.PageInfo.Builder(pageW, pageH, pageNo).create())
+        c = page!!.canvas
+        c!!.drawColor(Color.WHITE)
+        c!!.drawRect(0f, 0f, pageW.toFloat(), 5f, p(5f, navy))
+        c!!.drawRect(0f, 5f, 112f, 8f, p(3f, teal))
+        y = 28f
+    }
+    fun wrapped(text: String, paint: Paint, width: Float): List<String> {
+        val lines = mutableListOf<String>()
+        text.split(Regex("\\s+")).filter { it.isNotBlank() }.forEach { word ->
+            if (lines.isEmpty()) lines.add(word)
+            else {
+                val candidate = lines.last() + " " + word
+                if (paint.measureText(candidate) <= width) lines[lines.lastIndex] = candidate else lines.add(word)
+            }
+        }
+        return lines.ifEmpty { listOf("") }
+    }
+    fun ensure(height: Float) { if (y + height > footerY - 12f) startPage() }
+    fun text(value: String, size: Float = 9.2f, color: Int = ink, bold: Boolean = false, indent: Float = 0f, gap: Float = 3f) {
+        val paint = p(size, color, bold)
+        val lines = wrapped(value, paint, contentW - indent)
+        val lineHeight = size * 1.38f
+        ensure(lines.size * lineHeight + gap)
+        lines.forEach { line -> c!!.drawText(line, margin + indent, y + size, paint); y += lineHeight }
+        y += gap
+    }
+    fun section(title: String) {
+        ensure(30f)
+        val rect = RectF(margin, y, pageW - margin, y + 24f)
+        c!!.drawRoundRect(rect, 4f, 4f, p(10f, pale))
+        c!!.drawRoundRect(rect, 4f, 4f, p(10f, border).apply { style = Paint.Style.STROKE; strokeWidth = 0.6f })
+        c!!.drawText(title, margin + 10f, y + 16f, p(10.5f, navy, true))
+        y += 31f
+    }
+    fun bar(label: String, value: Double, detail: String) {
+        text(label, 8.8f, ink, true, gap = 1f)
+        ensure(25f)
+        val top = y
+        c!!.drawRoundRect(RectF(margin, top, pageW - margin, top + 7f), 4f, 4f, p(7f, pale))
+        val w = contentW * (value / 5.0).toFloat().coerceIn(0f, 1f)
+        if (w > 0f) c!!.drawRoundRect(RectF(margin, top, margin + w, top + 7f), 4f, 4f, p(7f, Color.rgb(211, 47, 47)))
+        y += 12f
+        text(detail, 7.8f, muted, gap = 4f)
+    }
+
+    startPage()
+    text("RAPORT MONITORINGU UCZNIA", 16f, navy, true, gap = 2f)
+    text("Osobny raport obserwacji i porównania wyników", 9f, muted, gap = 9f)
+    section("1. Dane monitoringu")
+    text("Uczeń: " + studentName.ifBlank { "nie podano" }, 10f, ink, true)
+    text("Okres: " + period.title.ifBlank { "nie podano" })
+    text("Data rozpoczęcia: " + period.startDate.ifBlank { "nie podano" })
+    text("Data zakończenia: " + period.endDate.ifBlank { "nie podano" })
+    text("Liczba nauczycieli: " + period.teachers.size.toString())
+    text("Data wygenerowania: " + SimpleDateFormat("dd.MM.yyyy", Locale("pl", "PL")).format(Date()), 8f, muted, gap = 8f)
+
+    section("2. Średnie wyniki według obszarów")
+    text("Skala 1–5. Brak oceny oraz „Nie obserwowano” są pomijane w średniej.", 8.3f, muted, gap = 5f)
+    period.observationAreas.forEach { area ->
+        val scores = period.teachers.mapNotNull { t ->
+            t.ratings.firstOrNull { it.areaId == area || it.areaName == area }
+                ?.takeIf { !it.notObserved }?.rating?.takeIf { it in 1..5 }
+        }
+        val avg = scores.takeIf { it.isNotEmpty() }?.average()
+        if (avg == null) {
+            text(area + " — brak ocen do obliczenia średniej.", 8.8f, ink, true, gap = 2f)
+        } else {
+            bar(area, avg, "Średnia: " + String.format(Locale("pl", "PL"), "%.2f", avg) + " / 5; nauczyciele z oceną: " + scores.size)
+        }
+    }
+    val allScores = period.teachers.flatMap { t ->
+        period.observationAreas.mapNotNull { area ->
+            t.ratings.firstOrNull { it.areaId == area || it.areaName == area }
+                ?.takeIf { !it.notObserved }?.rating?.takeIf { it in 1..5 }
+        }
+    }
+    if (allScores.isNotEmpty()) text("Średnia ogólna okresu: " + String.format(Locale("pl", "PL"), "%.2f", allScores.average()) + " / 5", 10f, navy, true, gap = 8f)
+    else text("Nie wprowadzono jeszcze ocen nauczycieli.", 9f, muted, gap = 8f)
+
+    section("3. Oceny i komentarze nauczycieli")
+    if (period.teachers.isEmpty()) text("Nie dodano jeszcze nauczycieli.")
+    period.teachers.forEach { teacher ->
+        ensure(40f)
+        text(teacher.name.ifBlank { "Nauczyciel bez nazwiska" }, 10f, navy, true, gap = 1f)
+        text(listOf(teacher.role, teacher.observationDate).filter { it.isNotBlank() }.joinToString(" • ").ifBlank { "Nie podano funkcji ani daty." }, 8f, muted, gap = 3f)
+        period.observationAreas.forEach { area ->
+            val r = teacher.ratings.firstOrNull { it.areaId == area || it.areaName == area }
+            val result = when {
+                r?.rating != null -> r.rating.toString() + "/5"
+                r?.notObserved == true -> "Nie obserwowano"
+                else -> "Brak oceny"
+            }
+            text(area + " — " + result, 8.5f, ink, true, indent = 8f, gap = 1f)
+            if (!r?.comment.isNullOrBlank()) text("Komentarz: " + r!!.comment, 8f, muted, indent = 16f, gap = 2f)
+        }
+        if (teacher.generalComment.isNotBlank()) text("Komentarz ogólny: " + teacher.generalComment, 8.5f, ink, indent = 8f, gap = 3f)
+        y += 5f
+    }
+    val allOrderedComparisons = comparisonPeriods
+        .distinctBy { it.id }
+        .sortedWith(compareBy<MonitoringPeriod> { it.startDate.ifBlank { it.createdAt } }.thenBy { it.createdAt })
+    val orderedComparisons = allOrderedComparisons.takeWhile { it.id != period.id } + listOf(period)
+    val comparisonAreas = orderedComparisons.flatMap { it.observationAreas }.distinct()
+    if (orderedComparisons.isNotEmpty() && comparisonAreas.isNotEmpty()) {
+        section(if (orderedComparisons.size == 1) "4. Wykres wyników w tym okresie" else "4. Porównanie wyników między pomiarami")
+        text("Każda linia przedstawia średnie oceny z jednego okresu obserwacji.", 8.5f, muted, gap = 2f)
+        text("Oś Y: średnia ocena (skala 1–5). Oś X: poszczególne pytania / obszary obserwacji.", 8f, muted, gap = 4f)
+        ensure(205f)
+        val chartTop = y + 8f
+        val chartBottom = chartTop + 112f
+        val chartLeft = margin + 31f
+        val chartRight = pageW - margin - 12f
+        val chartColors = listOf(
+            Color.rgb(25, 118, 210), Color.rgb(126, 87, 194), Color.rgb(230, 126, 34),
+            Color.rgb(0, 137, 123), Color.rgb(84, 110, 122), Color.rgb(93, 64, 55),
+            Color.rgb(57, 73, 171), Color.rgb(0, 121, 107)
+        )
+        val chartValues = orderedComparisons.map { measure ->
+            comparisonAreas.map { area ->
+                measure.teachers.mapNotNull { teacher ->
+                    teacher.ratings.firstOrNull { it.areaId == area || it.areaName == area }
+                        ?.takeIf { !it.notObserved }?.rating?.takeIf { it in 1..5 }
+                }.takeIf { it.isNotEmpty() }?.average()?.toFloat()
+            }
+        }
+        for (score in 1..5) {
+            val gy = chartBottom - (score - 1) / 4f * (chartBottom - chartTop)
+            c!!.drawLine(chartLeft, gy, chartRight, gy, p(6f, border))
+            c!!.drawText(score.toString(), margin + 14f, gy + 2f, p(7f, muted))
+        }
+        c!!.drawText("Średnia ocena", margin, chartTop - 1f, p(6.8f, muted))
+        comparisonAreas.indices.forEach { index ->
+            val x = if (comparisonAreas.size <= 1) (chartLeft + chartRight) / 2f
+                else chartLeft + index.toFloat() / (comparisonAreas.size - 1) * (chartRight - chartLeft)
+            c!!.drawText((index + 1).toString(), x - 2f, chartBottom + 12f, p(7f, muted))
+        }
+        chartValues.forEachIndexed { periodIndex, values ->
+            val color = chartColors[periodIndex % chartColors.size]
+            val points = values.mapIndexedNotNull { index, value ->
+                value?.let {
+                    val x = if (comparisonAreas.size <= 1) (chartLeft + chartRight) / 2f
+                        else chartLeft + index.toFloat() / (comparisonAreas.size - 1) * (chartRight - chartLeft)
+                    val yy = chartBottom - ((it - 1f) / 4f) * (chartBottom - chartTop)
+                    index to Offset(x, yy)
+                }
+            }
+            points.zipWithNext().forEach { (a, b) ->
+                if (b.first == a.first + 1) c!!.drawLine(a.second.x, a.second.y, b.second.x, b.second.y, p(2.3f, color))
+            }
+            points.forEach { point ->
+                c!!.drawCircle(point.second.x, point.second.y, 3.1f, p(3.1f, color))
+                val value = values[point.first] ?: return@forEach
+                val label = String.format(Locale("pl", "PL"), "%.2f", value)
+                val labelPaint = p(6.5f, color, true)
+                val labelWidth = labelPaint.measureText(label)
+                val labelX = (point.second.x - labelWidth / 2f).coerceIn(chartLeft, chartRight - labelWidth)
+                val labelY = if (periodIndex % 2 == 0 || point.second.y - 6f < chartTop + 5f) point.second.y + 11f else point.second.y - 5f
+                c!!.drawText(label, labelX, labelY, labelPaint)
+            }
+        }
+        y = chartBottom + 24f
+        text("Pytania / obszary na osi X:", 7.7f, ink, true, gap = 1f)
+        comparisonAreas.forEachIndexed { index, area ->
+            text((index + 1).toString() + " — " + area, 7.6f, muted, indent = 8f, gap = 1f)
+        }
+        text("Legenda pomiarów:", 7.7f, ink, true, gap = 1f)
+        orderedComparisons.forEachIndexed { index, measure ->
+            text("Pomiar " + (index + 1) + " — " + measure.title + " (" + measure.startDate.ifBlank { measure.createdAt } + ")", 7.6f, chartColors[index % chartColors.size], indent = 8f, gap = 1f)
+        }
+        if (orderedComparisons.size >= 2) {
+            text("Zmiana średniej dla każdego pytania od pierwszego do ostatniego uwzględnionego pomiaru:", 8f, ink, true, gap = 2f)
+            comparisonAreas.forEachIndexed { areaIndex, area ->
+                val first = chartValues.firstOrNull()?.getOrNull(areaIndex)
+                val latest = chartValues.lastOrNull()?.getOrNull(areaIndex)
+                val delta = if (first != null && latest != null) latest - first else null
+                text(area + " — " + (delta?.let {
+                    (if (it > 0) "+" else "") + String.format(Locale("pl", "PL"), "%.2f", it) + " pkt"
+                } ?: "brak danych do porównania"), 7.5f, muted, indent = 8f, gap = 1f)
+            }
+            val overallMeans = orderedComparisons.map { measure ->
+                val vals = measure.teachers.flatMap { teacher ->
+                    comparisonAreas.mapNotNull { area ->
+                        teacher.ratings.firstOrNull { it.areaId == area || it.areaName == area }
+                            ?.takeIf { !it.notObserved }?.rating?.takeIf { it in 1..5 }
+                    }
+                }
+                vals.takeIf { it.isNotEmpty() }?.average()
+            }
+            section("Statystyki porównania")
+            overallMeans.forEachIndexed { index, mean ->
+                text("Pomiar " + (index + 1) + ": średnia ogólna " +
+                    (mean?.let { String.format(Locale("pl", "PL"), "%.2f", it) + "/5" } ?: "brak danych"), 8f, ink, gap = 1f)
+            }
+        }
+    }
+    section("5. Wnioski z monitoringu")
+    text(period.summary.ifBlank { "Nie uzupełniono wniosków z monitoringu." }, 9f, ink, gap = 7f)
+    section("6. Zalecenia do dalszej pracy")
+    text(period.recommendations.ifBlank { "Nie uzupełniono zaleceń." }, 9f, ink, gap = 8f)
+    text("Dokument pomocniczy do analizy obserwacji. Wnioski należy interpretować z uwzględnieniem jakości i kompletności danych.", 7.5f, muted, gap = 5f)
+
+    if (page != null) {
+        c!!.drawLine(margin, footerY, pageW - margin, footerY, p(7f, border))
+        c!!.drawText("Monitoring ucznia • dokument poufny", margin, pageH - 18f, p(7f, muted))
+        val label = "Strona $pageNo"
+        c!!.drawText(label, pageW - margin - p(7f, muted).measureText(label), pageH - 18f, p(7f, muted))
+        doc.finishPage(page!!)
+    }
+    try { doc.writeTo(output) } finally { doc.close() }
+}
+
+
+/** Pusta karta do wydruku i ręcznego wypełnienia przez nauczyciela. */
+fun writeMonitoringObservationCardPdf(context: Context, output: OutputStream, studentName: String, period: MonitoringPeriod) {
+    val doc = PdfDocument()
+    val pageW = 595
+    val pageH = 842
+    val margin = 36f
+    val contentW = pageW - margin * 2
+    val bottom = pageH - 40f
+    val ink = Color.rgb(32, 51, 77)
+    val navy = Color.rgb(25, 51, 83)
+    val muted = Color.rgb(95, 108, 123)
+    val border = Color.rgb(190, 202, 214)
+    val pale = Color.rgb(242, 246, 250)
+    val font = runCatching { Typeface.createFromAsset(context.assets, "fonts/AvenirLTProBook.otf") }
+        .getOrElse { Typeface.create("sans-serif", Typeface.NORMAL) }
+    val bold = runCatching { Typeface.createFromAsset(context.assets, "fonts/AvenirLTProMedium.otf") }
+        .getOrElse { Typeface.create("sans-serif-medium", Typeface.NORMAL) }
+    fun p(size: Float, color: Int = ink, heavy: Boolean = false) = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textSize = size; this.color = color; typeface = if (heavy) bold else font
+    }
+    var pageNo = 0
+    var page: PdfDocument.Page? = null
+    var canvas: Canvas? = null
+    var y = 26f
+    fun startPage() {
+        if (page != null) {
+            canvas!!.drawLine(margin, bottom, pageW - margin, bottom, p(7f, border))
+            canvas!!.drawText("Karta Monitoringu Ucznia | Gabinet Psychologiczny Paweł Gębicki | www.pggp.pl | 2026", margin, pageH - 27f, p(5.5f, muted))
+            canvas!!.drawText("Wygenerowano: " + SimpleDateFormat("dd.MM.yyyy", Locale("pl", "PL")).format(Date()) + " r. | Dokument poufny", margin, pageH - 16f, p(6f, muted))
+            doc.finishPage(page!!)
+        }
+        pageNo++
+        page = doc.startPage(PdfDocument.PageInfo.Builder(pageW, pageH, pageNo).create())
+        canvas = page!!.canvas
+        canvas!!.drawColor(Color.WHITE)
+        canvas!!.drawRect(0f, 0f, pageW.toFloat(), 5f, p(5f, navy))
+        y = 24f
+    }
+    fun wrap(text: String, paint: Paint, width: Float): List<String> {
+        val lines = mutableListOf<String>()
+        text.split(Regex("\\s+")).filter { it.isNotBlank() }.forEach { word ->
+            if (lines.isEmpty()) lines.add(word)
+            else {
+                val candidate = lines.last() + " " + word
+                if (paint.measureText(candidate) <= width) lines[lines.lastIndex] = candidate else lines.add(word)
+            }
+        }
+        return lines.ifEmpty { listOf("") }
+    }
+    fun ensure(height: Float) { if (y + height > bottom - 8f) startPage() }
+    fun text(value: String, size: Float = 9f, color: Int = ink, heavy: Boolean = false, gap: Float = 3f) {
+        val paint = p(size, color, heavy)
+        val lines = wrap(value, paint, contentW)
+        val lineH = size * 1.35f
+        ensure(lines.size * lineH + gap)
+        lines.forEach { canvas!!.drawText(it, margin, y + size, paint); y += lineH }
+        y += gap
+    }
+    startPage()
+    text("KARTA OBSERWACJI UCZNIA", 15f, navy, true, 4f)
+    text("Wypełnia nauczyciel na podstawie obserwacji ucznia w codziennych sytuacjach szkolnych.", 8.5f, muted, false, 8f)
+    text("Uczeń: " + studentName.ifBlank { "........................................................" }, 10f, ink, true)
+    text("Okres: " + period.title + " (" + period.startDate + " – " + period.endDate + ")")
+    text("Nauczyciel: ................................................................................................................")
+    text("Rola / przedmiot: .....................................................   Data: ................................", gap = 8f)
+    text("Instrukcja: zaznacz jedną ocenę dla każdego obszaru. Jeśli nie było możliwości obserwacji, zaznacz „Nie obserwowano”. Dopisz konkretny przykład.", 8.3f, ink, false, 8f)
+    period.observationAreas.forEachIndexed { index, area ->
+        val areaPaint = p(9f, navy, true)
+        val areaLines = wrap((index + 1).toString() + ". " + area, areaPaint, contentW - 16f)
+        val cardH = 65f + (areaLines.size - 1) * 11f
+        ensure(cardH + 5f)
+        val rect = RectF(margin, y, pageW - margin, y + cardH)
+        canvas!!.drawRoundRect(rect, 4f, 4f, p(9f, Color.WHITE))
+        canvas!!.drawRoundRect(rect, 4f, 4f, p(9f, border).apply { style = Paint.Style.STROKE; strokeWidth = 0.7f })
+        var ty = y + 14f
+        areaLines.forEach { line -> canvas!!.drawText(line, margin + 9f, ty, areaPaint); ty += 11f }
+        ty += 2f
+        canvas!!.drawText("Ocena:   1 [  ]   2 [  ]   3 [  ]   4 [  ]   5 [  ]   Nie obserwowano [  ]", margin + 9f, ty + 9f, p(8.3f, ink))
+        ty += 18f
+        canvas!!.drawText("Komentarz / przykład:", margin + 9f, ty + 8f, p(7.7f, muted))
+        canvas!!.drawLine(margin + 9f, ty + 20f, pageW - margin - 9f, ty + 20f, p(7f, border))
+        canvas!!.drawLine(margin + 9f, ty + 31f, pageW - margin - 9f, ty + 31f, p(7f, border))
+        y += cardH + 5f
+    }
+    ensure(55f)
+    text("Komentarz ogólny:", 9f, navy, true, 2f)
+    repeat(3) { canvas!!.drawLine(margin, y + it * 13f, pageW - margin, y + it * 13f, p(7f, border)) }
+    y += 43f
+    text("Podpis nauczyciela: ........................................................................", 8.5f, ink, false, 3f)
+    if (page != null) {
+        canvas!!.drawLine(margin, bottom, pageW - margin, bottom, p(7f, border))
+        canvas!!.drawText("Karta obserwacji • dokument poufny", margin, pageH - 17f, p(7f, muted))
+        doc.finishPage(page!!)
+    }
+    try { doc.writeTo(output) } finally { doc.close() }
+}

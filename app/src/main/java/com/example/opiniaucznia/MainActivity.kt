@@ -1,5 +1,6 @@
 package com.example.opiniaucznia
 
+import androidx.activity.compose.BackHandler
 import android.app.Activity
 import android.app.DatePickerDialog
 import android.content.Context
@@ -61,6 +62,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -68,6 +70,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import org.json.JSONObject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
@@ -87,39 +90,80 @@ private data class RemoteAppVersion(
 @Composable
 private fun CheckForUpdates() {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
     var availableVersion by remember {
         mutableStateOf<RemoteAppVersion?>(null)
+    }
+    var isDownloading by remember { mutableStateOf(false) }
+    var downloadProgress by remember { mutableIntStateOf(0) }
+    var downloadMessage by remember { mutableStateOf<String?>(null) }
+    var downloadedApk by remember { mutableStateOf<File?>(null) }
+
+    fun installApk(file: File) {
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
+                !context.packageManager.canRequestPackageInstalls()
+            ) {
+                downloadMessage =
+                    "Plik został pobrany. Zezwól aplikacji Opinia Ucznia na instalowanie nieznanych aplikacji, a następnie wybierz „Uruchom instalator”."
+                context.startActivity(
+                    Intent(
+                        android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                        Uri.parse("package:${context.packageName}")
+                    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+                return
+            }
+
+            val apkUri = androidx.core.content.FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file
+            )
+
+            val installIntent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(apkUri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(installIntent)
+        } catch (e: Exception) {
+            downloadMessage = "Nie udało się uruchomić instalatora: ${e.message ?: "nieznany błąd"}"
+        }
     }
 
     LaunchedEffect(Unit) {
         val installedVersionCode = runCatching {
-            @Suppress("DEPRECATION")
-            context.packageManager
-                .getPackageInfo(context.packageName, 0)
-                .versionCode
+            if (android.os.Build.VERSION.SDK_INT >= 28) {
+                context.packageManager
+                    .getPackageInfo(context.packageName, 0)
+                    .longVersionCode.toInt()
+            } else {
+                @Suppress("DEPRECATION")
+                context.packageManager
+                    .getPackageInfo(context.packageName, 0)
+                    .versionCode
+            }
         }.getOrDefault(1)
 
         val remoteVersion = withContext(Dispatchers.IO) {
             var connection: HttpURLConnection? = null
-
             try {
                 connection = URL(
                     "https://raw.githubusercontent.com/djsolarx/ocenaucznia/main/version.json"
                 ).openConnection() as HttpURLConnection
 
                 connection.requestMethod = "GET"
-                connection.connectTimeout = 8000
-                connection.readTimeout = 8000
+                connection.connectTimeout = 10000
+                connection.readTimeout = 10000
                 connection.setRequestProperty("Cache-Control", "no-cache")
 
                 if (connection.responseCode !in 200..299) {
                     null
                 } else {
-                    val json = connection.inputStream.bufferedReader().use {
-                        it.readText()
-                    }
+                    val json = connection.inputStream.bufferedReader().use { it.readText() }
                     val obj = JSONObject(json)
-
                     val code = obj.optInt("versionCode", 0)
                     val name = obj.optString("versionName", "")
                     val apk = obj.optString("apkUrl", "")
@@ -135,16 +179,13 @@ private fun CheckForUpdates() {
                     }
                 }
             } catch (_: Exception) {
-                // Brak internetu lub błąd serwera nie blokuje uruchomienia aplikacji.
                 null
             } finally {
                 connection?.disconnect()
             }
         }
 
-        if (remoteVersion != null &&
-            remoteVersion.versionCode > installedVersionCode
-        ) {
+        if (remoteVersion != null && remoteVersion.versionCode > installedVersionCode) {
             availableVersion = remoteVersion
         }
     }
@@ -153,35 +194,127 @@ private fun CheckForUpdates() {
 
     if (update != null) {
         AlertDialog(
-            onDismissRequest = { availableVersion = null },
-            title = {
-                Text("Dostępna aktualizacja")
+            onDismissRequest = {
+                if (!isDownloading) availableVersion = null
             },
+            title = { Text("Dostępna aktualizacja") },
             text = {
-                Text(
-                    update.message +
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        update.message +
                             "\n\nNowa wersja: ${update.versionName}" +
                             "\nZainstalowana wersja jest starsza."
-                )
+                    )
+
+                    if (isDownloading) {
+                        Text("Pobieranie aktualizacji: $downloadProgress%")
+                        androidx.compose.material3.LinearProgressIndicator(
+                            progress = { downloadProgress / 100f },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text("Nie zamykaj aplikacji podczas pobierania.")
+                    }
+
+                    downloadMessage?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error)
+                    }
+                }
             },
             confirmButton = {
                 TextButton(
+                    enabled = !isDownloading,
                     onClick = {
-                        val url = update.apkUrl
-                        availableVersion = null
+                        val cachedApk = downloadedApk
+                        if (cachedApk != null && cachedApk.exists() && cachedApk.length() > 0L) {
+                            installApk(cachedApk)
+                        } else {
+                            scope.launch {
+                                isDownloading = true
+                                downloadProgress = 0
+                                downloadMessage = null
 
-                        runCatching {
-                            context.startActivity(
-                                Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                            )
+                                val result = runCatching { withContext(Dispatchers.IO) {
+                                    var connection: HttpURLConnection? = null
+                                    val target = File(context.cacheDir, "opinia-ucznia-update.apk")
+                                    try {
+                                        connection = URL(update.apkUrl).openConnection() as HttpURLConnection
+                                        connection.requestMethod = "GET"
+                                        connection.connectTimeout = 15000
+                                        connection.readTimeout = 30000
+                                        connection.instanceFollowRedirects = true
+
+                                        if (connection.responseCode !in 200..299) {
+                                            throw java.io.IOException(
+                                                "Serwer zwrócił kod ${connection.responseCode}."
+                                            )
+                                        }
+
+                                        val totalBytes = connection.contentLengthLong
+                                        var downloadedBytes = 0L
+
+                                        connection.inputStream.use { input ->
+                                            FileOutputStream(target).use { output ->
+                                                val buffer = ByteArray(64 * 1024)
+                                                while (true) {
+                                                    val count = input.read(buffer)
+                                                    if (count < 0) break
+                                                    output.write(buffer, 0, count)
+                                                    downloadedBytes += count
+
+                                                    if (totalBytes > 0L) {
+                                                        val percent =
+                                                            ((downloadedBytes * 100L) / totalBytes)
+                                                                .toInt().coerceIn(0, 100)
+                                                        withContext(Dispatchers.Main) {
+                                                            downloadProgress = percent
+                                                        }
+                                                    }
+                                                }
+                                                output.fd.sync()
+                                            }
+                                        }
+
+                                        if (!target.exists() || target.length() == 0L) {
+                                            throw java.io.IOException("Pobrany plik jest pusty.")
+                                        }
+                                        target
+                                    } catch (e: Exception) {
+                                        target.delete()
+                                        throw e
+                                    } finally {
+                                        connection?.disconnect()
+                                    }
+                                } }
+
+                                result.fold(
+                                    onSuccess = { file ->
+                                        downloadedApk = file
+                                        downloadProgress = 100
+                                        isDownloading = false
+                                        installApk(file)
+                                    },
+                                    onFailure = { error ->
+                                        isDownloading = false
+                                        downloadMessage =
+                                            "Pobieranie nie powiodło się: ${error.message ?: "sprawdź połączenie z internetem"}"
+                                    }
+                                )
+                            }
                         }
                     }
                 ) {
-                    Text("Pobierz aktualizację")
+                    Text(
+                        when {
+                            isDownloading -> "Pobieranie…"
+                            downloadedApk != null -> "Uruchom instalator"
+                            else -> "Pobierz aktualizację"
+                        }
+                    )
                 }
             },
             dismissButton = {
                 TextButton(
+                    enabled = !isDownloading,
                     onClick = { availableVersion = null }
                 ) {
                     Text("Później")
@@ -193,6 +326,7 @@ private fun CheckForUpdates() {
 
 private const val PREFS_NAME = "opinia_ucznia_draft"
 private const val DRAFT_KEY = "draft_json"
+private const val ACTIVE_RECORD_ID_KEY = "active_record_id"
 private const val ARCHIVE_KEY = "completed_students_v1"
 
 class MainActivity : ComponentActivity() {
@@ -340,7 +474,7 @@ private fun parseCsvLine(line: String, delimiter: Char): List<String> {
     return result
 }
 
-private fun printPdfFile(context: Context, file: File, jobName: String) {
+fun printPdfFile(context: Context, file: File, jobName: String) {
     val printManager = context.getSystemService(Context.PRINT_SERVICE) as PrintManager
     printManager.print(jobName, object : PrintDocumentAdapter() {
         override fun onLayout(
@@ -395,9 +529,10 @@ fun OpinionApp() {
     val prefs = remember { context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) }
     val archivePrefs = remember { context.getSharedPreferences("opinia_ucznia_archive", Context.MODE_PRIVATE) }
     val assessmentStore = remember { IndicatorAssessmentStore(context) }
+    val monitoringStore = remember { MonitoringStore(context) }
     val indicators = remember { runCatching { assessmentStore.loadCatalog(context) }.getOrDefault(emptyList()) }
     var draft by remember { mutableStateOf(StudentDraft.fromJson(prefs.getString(DRAFT_KEY, null))) }
-    var page by remember { mutableStateOf(-1) }
+    var page by rememberSaveable { mutableStateOf(-1) }
     var status by remember { mutableStateOf("Dane są zapisywane lokalnie na tym urządzeniu.") }
     var previewFile by remember { mutableStateOf<File?>(null) }
     var showAiPromptDialog by remember { mutableStateOf(false) }
@@ -446,8 +581,8 @@ fun OpinionApp() {
             append("Wymagania dotyczące treści i formatu:\n")
             append("1. Pisz po polsku, profesjonalnie, rzeczowo, neutralnie i zwięźle.\n")
             append("2. Korzystaj wyłącznie z danych z formularza. Nie dopisuj faktów ani nie stawiaj nieuzasadnionych diagnoz.\n")
-            append("3. Przygotuj wnioski pod tytułem: Wnioski do dalszej pracy z uczniem.\n")
-            append("4. Podziel tekst na ponumerowane sekcje, np. 1. Obszary wymagające wsparcia, 2. Zalecane działania w szkole, 3. Wskazówki do dalszej obserwacji. Uwzględniaj tylko sekcje uzasadnione danymi.\n")
+            append("3. Zastosuj tytuł: Wnioski do dalszej pracy z uczniem.\n")
+            append("4. Zawsze wygeneruj sekcję 3. Wskazówki do dalszej obserwacji. Oprzyj ją wyłącznie na dostępnych danych; jeśli danych jest mało, wskaż neutralne, konkretne zachowania do obserwowania bez dopisywania przyczyn. Pozostałe sekcje uwzględniaj, gdy uzasadniają je dane.\n")
             append("5. Każdy nagłówek sekcji umieść w osobnym wierszu. Pod nagłówkiem dodaj krótki akapit wyjaśniający, jeśli pozwalają na to dane.\n")
             append("6. Zalecenia przedstawiaj w postaci listy. Każde zalecenie zapisuj w osobnym wierszu, zaczynając od '- '.\n")
             append("7. Akapity i punkty listy powinny się uzupełniać, a nie powtarzać. Unikaj długich bloków tekstu i stosuj puste wiersze między sekcjami.\n")
@@ -459,7 +594,15 @@ fun OpinionApp() {
             append("13. Zwróć wyłącznie gotowy tekst wniosków, bez komentarza od asystenta i bez danych identyfikujących ucznia. Tekst wymaga sprawdzenia i zatwierdzenia przez specjalistę.")
         }
     }
-    var activeRecordId by remember { mutableStateOf(java.util.UUID.randomUUID().toString()) }
+    var activeRecordId by remember {
+        mutableStateOf(prefs.getString(ACTIVE_RECORD_ID_KEY, null) ?: java.util.UUID.randomUUID().toString())
+    }
+    LaunchedEffect(activeRecordId) {
+        prefs.edit().putString(ACTIVE_RECORD_ID_KEY, activeRecordId).apply()
+    }
+    var monitoringStudentId by rememberSaveable { mutableStateOf("") }
+    var monitoringStudentName by rememberSaveable { mutableStateOf("") }
+    var monitoringObservationSource by rememberSaveable { mutableStateOf("") }
 
     fun update(next: StudentDraft) {
         draft = next
@@ -471,6 +614,8 @@ fun OpinionApp() {
     var archiveRefresh by remember { mutableIntStateOf(0) }
     var pendingArchiveId by remember { mutableStateOf<String?>(null) }
     var pendingArchiveName by remember { mutableStateOf("") }
+    var pendingDeleteId by remember { mutableStateOf<String?>(null) }
+    var pendingDeleteName by remember { mutableStateOf("") }
 
     fun archiveArray(): JSONArray = runCatching { JSONArray(archivePrefs.getString(ARCHIVE_KEY, "[]")) }.getOrDefault(JSONArray())
 
@@ -511,6 +656,30 @@ fun OpinionApp() {
         transferLauncher.launch(intent)
     }
 
+    fun deleteStudent(recordId: String) {
+        val records = archiveArray()
+        val updated = JSONArray()
+        var removed = false
+        for (i in 0 until records.length()) {
+            val record = records.optJSONObject(i) ?: continue
+            if (record.optString("id") == recordId) {
+                removed = true
+            } else {
+                updated.put(record)
+            }
+        }
+        if (removed && archivePrefs.edit().putString(ARCHIVE_KEY, updated.toString()).commit()) {
+            archiveRefresh++
+            if (activeRecordId == recordId) {
+                activeRecordId = java.util.UUID.randomUUID().toString()
+                prefs.edit().putString(ACTIVE_RECORD_ID_KEY, activeRecordId).apply()
+            }
+            status = "Usunięto ucznia z lokalnej bazy."
+        } else if (removed) {
+            status = "Nie udało się usunąć ucznia. Spróbuj ponownie."
+        }
+    }
+
     fun setStudentArchived(recordId: String, archived: Boolean) {
         val records = archiveArray()
         var found = false
@@ -529,6 +698,8 @@ fun OpinionApp() {
         }
     }
     fun saveToArchive() {
+        if (activeRecordId.isBlank()) activeRecordId = java.util.UUID.randomUUID().toString()
+        prefs.edit().putString(ACTIVE_RECORD_ID_KEY, activeRecordId).apply()
         val array = archiveArray()
         val answers = assessmentStore.getAllSavedAnswers()
         val answersJson = JSONObject().apply {
@@ -537,18 +708,25 @@ fun OpinionApp() {
                 put("noData", answer.noData); put("notes", answer.notes)
             }) }
         }
+        val previousRecord = (0 until array.length())
+            .mapNotNull { array.optJSONObject(it) }
+            .firstOrNull { it.optString("id") == activeRecordId }
         val record = JSONObject().apply {
             put("id", activeRecordId)
             put("name", draft.studentName.ifBlank { "Uczeń bez podanego imienia i nazwiska" })
             put("school", draft.school); put("className", draft.className); put("birthDate", draft.birthDate)
             put("savedAt", java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale("pl", "PL")).format(java.util.Date()))
             put("draft", draft.toJson()); put("answers", answersJson)
+            previousRecord?.optJSONObject("monitoring")?.let { put("monitoring", it) }
         }
         val updated = JSONArray()
         var replaced = false
         for (i in 0 until array.length()) {
             val old = array.optJSONObject(i) ?: continue
-            if (old.optString("id") == activeRecordId) { updated.put(record); replaced = true } else updated.put(old)
+            if (old.optString("id") == activeRecordId) {
+                if (!replaced) updated.put(record)
+                replaced = true
+            } else updated.put(old)
         }
         if (!replaced) updated.put(record)
         archivePrefs.edit().putString(ARCHIVE_KEY, updated.toString()).apply()
@@ -579,7 +757,8 @@ fun OpinionApp() {
     }
 
     fun loadArchivedRecord(record: JSONObject) {
-        activeRecordId = record.optString("id", java.util.UUID.randomUUID().toString())
+        activeRecordId = record.optString("id").ifBlank { java.util.UUID.randomUUID().toString() }
+        prefs.edit().putString(ACTIVE_RECORD_ID_KEY, activeRecordId).apply()
         draft = StudentDraft.fromJson(record.optString("draft"))
         prefs.edit().putString(DRAFT_KEY, draft.toJson()).apply()
         val answersObj = record.optJSONObject("answers") ?: JSONObject()
@@ -605,6 +784,18 @@ fun OpinionApp() {
     val firstIndicatorPage = 2
     val conclusionsPage = firstIndicatorPage + indicators.size
     val summaryPage = conclusionsPage + 1
+
+    BackHandler(enabled = previewFile != null || page != -1) {
+        when {
+            previewFile != null -> previewFile = null
+            page == -3 -> page = conclusionsPage
+            page == -2 -> page = -1
+            page == summaryPage -> page = conclusionsPage
+            page > 0 -> page -= 1
+            page == 0 -> page = -1
+            else -> page = -1
+        }
+    }
     val isIndicatorPage = page in firstIndicatorPage until conclusionsPage
     val indicatorIndex = page - firstIndicatorPage
     val pageTitle = when {
@@ -635,9 +826,27 @@ fun OpinionApp() {
             onOpenWebsite = {
                 runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://pggp.pl"))) }
             },
+            onOpenManual = {
+                runCatching {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://raw.githubusercontent.com/djsolarx/ocenaucznia/main/instrukcja.pdf")))
+                }
+            },
             onSupport = {
                 runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://buycoffee.to/trustmatrix"))) }
+            },
+            onOpenInstaller = {
+                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/djsolarx/ocenaucznia/releases/latest/download/app-release.apk"))) }
             }
+        )
+    } else if (page == -3) {
+        MonitoringScreen(
+            studentId = monitoringStudentId,
+            studentName = monitoringStudentName,
+            schoolName = draft.school,
+            schoolTown = draft.schoolTown,
+            observationSource = monitoringObservationSource,
+            store = monitoringStore,
+            onBack = { page = conclusionsPage }
         )
     } else if (page == -1) {
         Scaffold { padding ->
@@ -648,6 +857,7 @@ fun OpinionApp() {
                 Button(onClick = { page = 0 }, modifier = Modifier.fillMaxWidth()) { Text("Rozpocznij / kontynuuj bieżącą opinię") }
                 OutlinedButton(onClick = {
                     activeRecordId = java.util.UUID.randomUUID().toString()
+                    prefs.edit().putString(ACTIVE_RECORD_ID_KEY, activeRecordId).apply()
                     draft = StudentDraft()
                     prefs.edit().putString(DRAFT_KEY, draft.toJson()).apply()
                     assessmentStore.clearAnswers()
@@ -760,12 +970,69 @@ fun OpinionApp() {
                                     Text(if (showArchivedStudents) "↩ Przywróć" else "📦 Archiwizuj")
                                 }
                             }
-                            TextButton(
-                                onClick = { startTransfer("send", record.toString()) },
-                                modifier = Modifier.fillMaxWidth()
-                            ) { Text("Udostępnij przez QR + Bluetooth") }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = {
+                                        loadArchivedRecord(record)
+                                        page = conclusionsPage
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                ) { Text("Osoby opracowujące opinię") }
+                                OutlinedButton(
+                                    onClick = {
+                                        activeRecordId = recordId
+                                        monitoringStudentId = recordId
+                                        monitoringStudentName = recordName
+                                        monitoringObservationSource = StudentDraft.fromJson(record.optString("draft")).conclusions.trim()
+                                        loadArchivedRecord(record)
+                                        page = -3
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                ) { Text("Monitoring ucznia") }
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                TextButton(
+                                    onClick = { startTransfer("send", record.toString()) },
+                                    modifier = Modifier.weight(1f)
+                                ) { Text("Udostępnij przez QR + Bluetooth") }
+                                TextButton(
+                                    onClick = {
+                                        pendingDeleteId = recordId
+                                        pendingDeleteName = recordName
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                ) { Text("Usuń ucznia") }
+                            }
                         }
                     }
+                }
+
+                if (pendingDeleteId != null) {
+                    AlertDialog(
+                        onDismissRequest = { pendingDeleteId = null },
+                        title = { Text("Usunąć ucznia?") },
+                        text = {
+                            Text("Czy na pewno usunąć „$pendingDeleteName” z bazy uczniów? Zostaną usunięte jego dane opinii i monitoringu. Tej operacji nie można cofnąć.")
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                val id = pendingDeleteId
+                                pendingDeleteId = null
+                                if (id != null) deleteStudent(id)
+                            }) { Text("Usuń trwale") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { pendingDeleteId = null }) { Text("Anuluj") }
+                        }
+                    )
                 }
 
                 if (pendingArchiveId != null) {
@@ -797,13 +1064,6 @@ fun OpinionApp() {
                     )
                 }
                 Text(status, style = MaterialTheme.typography.bodySmall)
-                Text(
-                    text = "Wersja ${BuildConfig.VERSION_NAME}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                )
             }
         }
     } else if (isIndicatorPage) {
@@ -834,6 +1094,27 @@ fun OpinionApp() {
                         OutlinedTextField(value = draft.conclusions, onValueChange = { update(draft.copy(conclusions = it)) }, label = { Text("Wnioski do dalszej pracy z uczniem") }, placeholder = { Text("Wpisz wnioski wynikające z przeprowadzonej oceny") }, modifier = Modifier.fillMaxWidth(), minLines = 5)
                         Text("Możesz przygotować prompt dla dowolnego czatu AI. Przed udostępnieniem sprawdź treść i usuń informacje, które mogłyby identyfikować ucznia.", style = MaterialTheme.typography.bodySmall)
                         Button(onClick = { aiPrompt = buildAiPrompt(); showAiPromptDialog = true }, modifier = Modifier.fillMaxWidth()) { Text("Przygotuj prompt dla AI") }
+                        Button(
+                            onClick = {
+                                // Zapisz lub zaktualizuj rekord przed otwarciem monitoringu,
+                                // aby okresy i oceny nauczycieli miały trwałe miejsce zapisu.
+                                if (activeRecordId.isNullOrBlank()) {
+                                    activeRecordId = java.util.UUID.randomUUID().toString()
+                                }
+                                saveToArchive()
+
+                                monitoringStudentId = activeRecordId
+                                monitoringStudentName = draft.studentName
+                                monitoringObservationSource = draft.conclusions.trim()
+                                if (monitoringObservationSource.isBlank()) {
+                                    status = "Otworzono monitoring. Uzupełnij wnioski do dalszej pracy z uczniem, aby przygotować prompt do monitorowania."
+                                }
+                                page = -3
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Monitoring ucznia")
+                        }
                         Text("Osoby opracowujące opinię", style = MaterialTheme.typography.titleLarge)
                         OutlinedTextField(draft.homeroomTeacher, { update(draft.copy(homeroomTeacher = it)) }, label = { Text("Wychowawca klasy") }, modifier = Modifier.fillMaxWidth())
                         OutlinedTextField(draft.pedagogue, { update(draft.copy(pedagogue = it)) }, label = { Text("Pedagog / pedagog specjalny") }, modifier = Modifier.fillMaxWidth())
@@ -872,13 +1153,10 @@ fun OpinionApp() {
                         SummaryLine("Wychowawca klasy", draft.homeroomTeacher); SummaryLine("Pedagog / pedagog specjalny", draft.pedagogue)
                         SummaryLine("Psycholog", draft.psychologist); SummaryLine("Inni nauczyciele / specjaliści", draft.otherStaff)
                         SummaryLine("Dyrektor szkoły", draft.schoolDirector)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = { saveToArchive() }, modifier = Modifier.weight(1f)) { Text("Zapisz w bazie uczniów") }
-                            Button(onClick = {
-                                val filename = "Opinia_${draft.studentName.trim().replace(Regex("[^A-Za-z0-9_-]"), "_").ifBlank { "ucznia" }}.pdf"
-                                pdfLauncher.launch(filename)
-                            }, modifier = Modifier.weight(1f)) { Text("Eksportuj PDF") }
-                        }
+                        Button(onClick = {
+                            val filename = "Opinia_${draft.studentName.trim().replace(Regex("[^A-Za-z0-9_-]"), "_").ifBlank { "ucznia" }}.pdf"
+                            pdfLauncher.launch(filename)
+                        }, modifier = Modifier.fillMaxWidth()) { Text("Eksportuj PDF") }
                         Button(
                             onClick = {
                                 val safeName = draft.studentName.trim().replace(Regex("[^A-Za-z0-9_-]"), "_").ifBlank { "ucznia" }
@@ -916,18 +1194,16 @@ fun OpinionApp() {
                     }
                 }
                 Text(status, style = MaterialTheme.typography.bodySmall)
-                Text(
-                    text = "Wersja ${BuildConfig.VERSION_NAME}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                )
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedButton(onClick = { page = when { page == 0 -> -1; page == conclusionsPage -> if (indicators.isNotEmpty()) conclusionsPage - 1 else 1; page == summaryPage -> conclusionsPage; else -> page - 1 } }, modifier = Modifier.weight(1f)) { Text(if (page == 0) "Strona główna" else "Poprzednia") }
                     Button(onClick = {
                         prefs.edit().putString(DRAFT_KEY, draft.toJson()).apply()
-                        status = "Zapisano szkic lokalnie."
+                        if (page == conclusionsPage) {
+                            if (activeRecordId.isBlank()) activeRecordId = java.util.UUID.randomUUID().toString()
+                            saveToArchive()
+                        } else {
+                            status = "Zapisano szkic lokalnie."
+                        }
                         page = when { page == 0 -> 1; page == 1 -> if (indicators.isNotEmpty()) firstIndicatorPage else conclusionsPage; page == conclusionsPage -> summaryPage; page == summaryPage -> -1; else -> page + 1 }
                     }, modifier = Modifier.weight(1f)) { Text(when (page) { 0, 1 -> "Dalej"; conclusionsPage -> "Przejdź do podsumowania"; summaryPage -> "Zakończ"; else -> "Dalej" }) }
                 }
@@ -976,8 +1252,19 @@ fun OpinionApp() {
 private fun AboutAppScreen(
     onBack: () -> Unit,
     onOpenWebsite: () -> Unit,
-    onSupport: () -> Unit
+    onOpenManual: () -> Unit,
+    onSupport: () -> Unit,
+    onOpenInstaller: () -> Unit
 ) {
+    val installUrl = "https://github.com/djsolarx/ocenaucznia/releases/latest/download/app-release.apk"
+    val qrBitmap = remember {
+        runCatching {
+            val matrix = MultiFormatWriter().encode(installUrl, BarcodeFormat.QR_CODE, 720, 720)
+            Bitmap.createBitmap(720, 720, Bitmap.Config.ARGB_8888).apply {
+                for (x in 0 until 720) for (y in 0 until 720) setPixel(x, y, if (matrix[x, y]) android.graphics.Color.BLACK else android.graphics.Color.WHITE)
+            }
+        }.getOrNull()
+    }
     val navy = Color(0xFF1D3D6B)
     val lightCard = Color(0xFFF1F3F8)
     val green = Color(0xFF247B55)
@@ -989,7 +1276,7 @@ private fun AboutAppScreen(
                 title = { Text("O aplikacji", color = Color.White, fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     TextButton(onClick = onBack) {
-                        Text("‹", color = Color.White, style = MaterialTheme.typography.headlineLarge)
+                        Text("Wróć", color = Color.White, style = MaterialTheme.typography.titleMedium)
                     }
                 },
                 colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
@@ -1017,6 +1304,25 @@ private fun AboutAppScreen(
                     Button(onClick = onOpenWebsite, modifier = Modifier.fillMaxWidth(), colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = navy)) {
                         Text("🌐  pggp.pl")
                     }
+                    OutlinedButton(onClick = onOpenManual, modifier = Modifier.fillMaxWidth()) {
+                        Text("📘  Instrukcja obsługi (PDF)")
+                    }
+                }
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = lightCard)
+            ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Instalacja aplikacji", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = navy)
+                    Text("Zeskanuj kod QR aparatem telefonu, aby pobrać aktualną wersję aplikacji Opinia Ucznia z GitHub Releases.")
+                    if (qrBitmap != null) {
+                        Image(bitmap = qrBitmap.asImageBitmap(), contentDescription = "Kod QR do pobrania aplikacji Opinia Ucznia", modifier = Modifier.size(240.dp))
+                    } else Text("Nie udało się wygenerować kodu QR.")
+                    OutlinedButton(onClick = onOpenInstaller, modifier = Modifier.fillMaxWidth()) { Text("Otwórz link do instalatora") }
+                    Text("Po pobraniu pliku APK Android może poprosić o zgodę na instalowanie aplikacji z tej przeglądarki.", style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
                 }
             }
 
@@ -1037,14 +1343,30 @@ private fun AboutAppScreen(
     color = Color(0xFF303632)
 )
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("Mała\n5 zł", "Średnia\n10 zł", "Duża\n25 zł").forEach { amount ->
+                        listOf("Mała" to "5 zł", "Średnia" to "10 zł", "Duża" to "25 zł").forEach { (label, price) ->
                             OutlinedButton(
                                 onClick = onSupport,
                                 modifier = Modifier.weight(1f).height(76.dp),
                                 shape = RoundedCornerShape(14.dp),
-                                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = green)
+                                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = green),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp, vertical = 8.dp)
                             ) {
-                                Text(amount, textAlign = TextAlign.Center, fontWeight = FontWeight.SemiBold)
+                                Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                                    Text(
+                                        label,
+                                        textAlign = TextAlign.Center,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        style = MaterialTheme.typography.titleSmall
+                                    )
+                                    Text(
+                                        price,
+                                        textAlign = TextAlign.Center,
+                                        fontWeight = FontWeight.SemiBold,
+                                        style = MaterialTheme.typography.titleSmall
+                                    )
+                                }
                             }
                         }
                     }
@@ -1222,10 +1544,13 @@ private fun SummaryLine(label: String, value: String) {
     if (value.isNotBlank()) {
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(label, style = MaterialTheme.typography.labelMedium)
-            Text(value)
+            Text(value, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
+
+
+
 
 
 
