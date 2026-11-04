@@ -339,7 +339,7 @@ $observationSource
         val target = periodToDelete!!
         AlertDialog(onDismissRequest = { periodToDelete = null }, title = { Text("Usunąć okres obserwacji?") }, text = { Text("Okres „${target.title}” oraz zapisane w nim oceny i komentarze zostaną usunięte. Tej operacji nie można cofnąć.") }, confirmButton = { Button(onClick = {
             val updated = monitoring.copy(periods = monitoring.periods.filterNot { it.id == target.id })
-            if (store.save(studentId, updated)) { monitoring = updated; status = "Usunięto okres obserwacji: ${target.title}."; if (selectedPeriodId == target.id) selectedPeriodId = "" } else status = "Nie udało się usunąć okresu obserwacji."
+            if (store.save(studentId, updated)) { monitoring = updated; status = "Usunięto okres obserwacji: ${target.title}." } else status = "Nie udało się usunąć okresu obserwacji."
             periodToDelete = null
         }) { Text("Usuń") } }, dismissButton = { TextButton(onClick = { periodToDelete = null }) { Text("Anuluj") } })
     }
