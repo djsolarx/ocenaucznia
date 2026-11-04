@@ -326,6 +326,7 @@ private fun CheckForUpdates() {
 
 private const val PREFS_NAME = "opinia_ucznia_draft"
 private const val DRAFT_KEY = "draft_json"
+private const val ACTIVE_RECORD_ID_KEY = "active_record_id"
 private const val ARCHIVE_KEY = "completed_students_v1"
 
 class MainActivity : ComponentActivity() {
@@ -593,7 +594,12 @@ fun OpinionApp() {
             append("13. Zwróć wyłącznie gotowy tekst wniosków, bez komentarza od asystenta i bez danych identyfikujących ucznia. Tekst wymaga sprawdzenia i zatwierdzenia przez specjalistę.")
         }
     }
-    var activeRecordId by remember { mutableStateOf(java.util.UUID.randomUUID().toString()) }
+    var activeRecordId by remember {
+        mutableStateOf(prefs.getString(ACTIVE_RECORD_ID_KEY, null) ?: java.util.UUID.randomUUID().toString())
+    }
+    LaunchedEffect(activeRecordId) {
+        prefs.edit().putString(ACTIVE_RECORD_ID_KEY, activeRecordId).apply()
+    }
     var monitoringStudentId by remember { mutableStateOf("") }
     var monitoringStudentName by remember { mutableStateOf("") }
     var monitoringObservationSource by remember { mutableStateOf("") }
@@ -608,6 +614,8 @@ fun OpinionApp() {
     var archiveRefresh by remember { mutableIntStateOf(0) }
     var pendingArchiveId by remember { mutableStateOf<String?>(null) }
     var pendingArchiveName by remember { mutableStateOf("") }
+    var pendingDeleteId by remember { mutableStateOf<String?>(null) }
+    var pendingDeleteName by remember { mutableStateOf("") }
 
     fun archiveArray(): JSONArray = runCatching { JSONArray(archivePrefs.getString(ARCHIVE_KEY, "[]")) }.getOrDefault(JSONArray())
 
@@ -648,6 +656,30 @@ fun OpinionApp() {
         transferLauncher.launch(intent)
     }
 
+    fun deleteStudent(recordId: String) {
+        val records = archiveArray()
+        val updated = JSONArray()
+        var removed = false
+        for (i in 0 until records.length()) {
+            val record = records.optJSONObject(i) ?: continue
+            if (record.optString("id") == recordId) {
+                removed = true
+            } else {
+                updated.put(record)
+            }
+        }
+        if (removed && archivePrefs.edit().putString(ARCHIVE_KEY, updated.toString()).commit()) {
+            archiveRefresh++
+            if (activeRecordId == recordId) {
+                activeRecordId = java.util.UUID.randomUUID().toString()
+                prefs.edit().putString(ACTIVE_RECORD_ID_KEY, activeRecordId).apply()
+            }
+            status = "Usunięto ucznia z lokalnej bazy."
+        } else if (removed) {
+            status = "Nie udało się usunąć ucznia. Spróbuj ponownie."
+        }
+    }
+
     fun setStudentArchived(recordId: String, archived: Boolean) {
         val records = archiveArray()
         var found = false
@@ -666,6 +698,8 @@ fun OpinionApp() {
         }
     }
     fun saveToArchive() {
+        if (activeRecordId.isBlank()) activeRecordId = java.util.UUID.randomUUID().toString()
+        prefs.edit().putString(ACTIVE_RECORD_ID_KEY, activeRecordId).apply()
         val array = archiveArray()
         val answers = assessmentStore.getAllSavedAnswers()
         val answersJson = JSONObject().apply {
@@ -689,7 +723,10 @@ fun OpinionApp() {
         var replaced = false
         for (i in 0 until array.length()) {
             val old = array.optJSONObject(i) ?: continue
-            if (old.optString("id") == activeRecordId) { updated.put(record); replaced = true } else updated.put(old)
+            if (old.optString("id") == activeRecordId) {
+                if (!replaced) updated.put(record)
+                replaced = true
+            } else updated.put(old)
         }
         if (!replaced) updated.put(record)
         archivePrefs.edit().putString(ARCHIVE_KEY, updated.toString()).apply()
@@ -720,7 +757,8 @@ fun OpinionApp() {
     }
 
     fun loadArchivedRecord(record: JSONObject) {
-        activeRecordId = record.optString("id", java.util.UUID.randomUUID().toString())
+        activeRecordId = record.optString("id").ifBlank { java.util.UUID.randomUUID().toString() }
+        prefs.edit().putString(ACTIVE_RECORD_ID_KEY, activeRecordId).apply()
         draft = StudentDraft.fromJson(record.optString("draft"))
         prefs.edit().putString(DRAFT_KEY, draft.toJson()).apply()
         val answersObj = record.optJSONObject("answers") ?: JSONObject()
@@ -819,6 +857,7 @@ fun OpinionApp() {
                 Button(onClick = { page = 0 }, modifier = Modifier.fillMaxWidth()) { Text("Rozpocznij / kontynuuj bieżącą opinię") }
                 OutlinedButton(onClick = {
                     activeRecordId = java.util.UUID.randomUUID().toString()
+                    prefs.edit().putString(ACTIVE_RECORD_ID_KEY, activeRecordId).apply()
                     draft = StudentDraft()
                     prefs.edit().putString(DRAFT_KEY, draft.toJson()).apply()
                     assessmentStore.clearAnswers()
@@ -956,12 +995,44 @@ fun OpinionApp() {
                                 ) { Text("Monitoring ucznia") }
                             }
 
-                            TextButton(
-                                onClick = { startTransfer("send", record.toString()) },
-                                modifier = Modifier.fillMaxWidth()
-                            ) { Text("Udostępnij przez QR + Bluetooth") }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                TextButton(
+                                    onClick = { startTransfer("send", record.toString()) },
+                                    modifier = Modifier.weight(1f)
+                                ) { Text("Udostępnij przez QR + Bluetooth") }
+                                TextButton(
+                                    onClick = {
+                                        pendingDeleteId = recordId
+                                        pendingDeleteName = recordName
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                ) { Text("Usuń ucznia") }
+                            }
                         }
                     }
+                }
+
+                if (pendingDeleteId != null) {
+                    AlertDialog(
+                        onDismissRequest = { pendingDeleteId = null },
+                        title = { Text("Usunąć ucznia?") },
+                        text = {
+                            Text("Czy na pewno usunąć „$pendingDeleteName” z bazy uczniów? Zostaną usunięte jego dane opinii i monitoringu. Tej operacji nie można cofnąć.")
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                val id = pendingDeleteId
+                                pendingDeleteId = null
+                                if (id != null) deleteStudent(id)
+                            }) { Text("Usuń trwale") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { pendingDeleteId = null }) { Text("Anuluj") }
+                        }
+                    )
                 }
 
                 if (pendingArchiveId != null) {
