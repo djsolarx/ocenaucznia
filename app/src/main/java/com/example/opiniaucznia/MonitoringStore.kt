@@ -83,7 +83,11 @@ class MonitoringStore(context: Context) {
             val draft = runCatching { JSONObject(record.optString("draft")) }.getOrNull()
                 ?: continue
             if (normalize(draft.optString("school")) != targetSchool) continue
-            if (targetTown.isNotBlank() && normalize(draft.optString("schoolTown")) != targetTown) continue
+            // Jeśli starszy rekord nie ma zapisanej miejscowości, nie odrzucaj go:
+            // nazwa szkoły nadal musi być zgodna. Gdy obie miejscowości są znane,
+            // wymagaj zgodności, aby nie mieszać szkół o tej samej nazwie.
+            val storedTown = normalize(draft.optString("schoolTown"))
+            if (targetTown.isNotBlank() && storedTown.isNotBlank() && storedTown != targetTown) continue
 
             val monitoring = StudentMonitoring.fromJson(record.optJSONObject("monitoring"))
             monitoring.periods.forEach { period -> teachers.addAll(period.teachers) }
