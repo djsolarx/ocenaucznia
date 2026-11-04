@@ -66,13 +66,13 @@ fun MonitoringManagementPanel(
     onClose: () -> Unit
 ) {
     val context = LocalContext.current
-    val teacherSaver = androidx.compose.runtime.saveable.Saver<MonitoringTeacher?, String>(
-        save = { it?.toJson()?.toString().orEmpty() },
-        restore = { raw -> raw.takeIf(String::isNotBlank)?.let { MonitoringTeacher.fromJson(org.json.JSONObject(it)) } }
+    val teacherSaver = androidx.compose.runtime.saveable.Saver<androidx.compose.runtime.MutableState<MonitoringTeacher?>, String>(
+        save = { it.value?.toJson()?.toString().orEmpty() },
+        restore = { raw -> androidx.compose.runtime.mutableStateOf(raw.takeIf(String::isNotBlank)?.let { MonitoringTeacher.fromJson(org.json.JSONObject(it)) }) }
     )
-    val periodSaver = androidx.compose.runtime.saveable.Saver<MonitoringPeriod?, String>(
-        save = { it?.toJson()?.toString().orEmpty() },
-        restore = { raw -> raw.takeIf(String::isNotBlank)?.let { MonitoringPeriod.fromJson(org.json.JSONObject(it)) } }
+    val periodSaver = androidx.compose.runtime.saveable.Saver<androidx.compose.runtime.MutableState<MonitoringPeriod?>, String>(
+        save = { it.value?.toJson()?.toString().orEmpty() },
+        restore = { raw -> androidx.compose.runtime.mutableStateOf(raw.takeIf(String::isNotBlank)?.let { MonitoringPeriod.fromJson(org.json.JSONObject(it)) }) }
     )
     var monitoring by remember(studentId) { mutableStateOf(initialMonitoring) }
     LaunchedEffect(initialMonitoring) { monitoring = initialMonitoring }
