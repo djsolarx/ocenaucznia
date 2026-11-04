@@ -54,9 +54,9 @@ fun MonitoringScreen(
     store: MonitoringStore,
     onBack: () -> Unit
 ) {
-    val periodSaver = androidx.compose.runtime.saveable.Saver<MonitoringPeriod?, String>(
-        save = { it?.toJson()?.toString().orEmpty() },
-        restore = { raw -> raw.takeIf(String::isNotBlank)?.let { MonitoringPeriod.fromJson(org.json.JSONObject(it)) } }
+    val periodSaver = androidx.compose.runtime.saveable.Saver<androidx.compose.runtime.MutableState<MonitoringPeriod?>, String>(
+        save = { it.value?.toJson()?.toString().orEmpty() },
+        restore = { raw -> androidx.compose.runtime.mutableStateOf(raw.takeIf(String::isNotBlank)?.let { MonitoringPeriod.fromJson(org.json.JSONObject(it)) }) }
     )
     var monitoring by remember(studentId) {
         mutableStateOf(store.load(studentId))
