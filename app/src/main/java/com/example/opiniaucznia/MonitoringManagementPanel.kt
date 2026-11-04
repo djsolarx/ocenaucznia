@@ -147,26 +147,21 @@ fun MonitoringManagementPanel(
                     Text("Skala: 1 — duże trudności; 2 — wyraźne trudności; 3 — częściowo prawidłowo; 4 — przeważnie prawidłowo; 5 — stabilnie i samodzielnie.")
                     Text("Średnia uwzględnia wyłącznie oceny od 1 do 5. Brak oceny i „Nie obserwowano” są pomijane.", style = MaterialTheme.typography.bodySmall)
 
-                    val sortedPeriodsForTeachers = monitoring.periods.sortedWith(compareBy<MonitoringPeriod> { it.startDate.ifBlank { it.createdAt } }.thenBy { it.createdAt })
-                    val periodsThroughSelected = sortedPeriodsForTeachers.takeWhile { it.id != period.id } + listOf(period)
-                    val visibleTeacherEntries = periodsThroughSelected.flatMap { teacherPeriod ->
-                        teacherPeriod.teachers.map { teacherPeriod to it }
-                    }.distinctBy { it.first.id + "|" + it.second.id }
-                    visibleTeacherEntries.forEach { (teacherPeriod, teacher) ->
-                        val isCurrentPeriodTeacher = teacherPeriod.id == period.id
+                    // W tym widoku pokazujemy wyłącznie nauczycieli przypisanych do wybranego okresu.
+                    // Nauczyciele z wcześniejszych okresów są dostępni jedynie na liście wyboru podczas dodawania.
+                    period.teachers.forEach { teacher ->
                         Card(Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Column(Modifier.weight(1f)) {
                                         Text(teacher.name, style = MaterialTheme.typography.titleMedium)
-                                        if (!isCurrentPeriodTeacher) Text("Poprzedni pomiar: ${teacherPeriod.title}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
-                                    if (isCurrentPeriodTeacher) TextButton(onClick = { teacherToDelete = teacher }) { Text("✕ Usuń") }
+                                    TextButton(onClick = { teacherToDelete = teacher }) { Text("✕ Usuń") }
                                 }
                                 Text(listOf(teacher.role, teacher.observationDate).filter { it.isNotBlank() }.joinToString(" • "))
-                                Text("Wprowadzone oceny: ${teacher.ratings.count { it.rating != null }} / ${teacherPeriod.observationAreas.size}")
+                                Text("Wprowadzone oceny: ${teacher.ratings.count { it.rating != null }} / ${period.observationAreas.size}")
                                 if (teacher.generalComment.isNotBlank()) Text("Komentarz: ${teacher.generalComment}")
-                                if (isCurrentPeriodTeacher) OutlinedButton(onClick = { editingTeacherId = teacher.id; showEditTeacher = true }, modifier = Modifier.fillMaxWidth()) {
+                                OutlinedButton(onClick = { editingTeacherId = teacher.id; showEditTeacher = true }, modifier = Modifier.fillMaxWidth()) {
                                     Text("Edytuj oceny i komentarze")
                                 }
                             }
