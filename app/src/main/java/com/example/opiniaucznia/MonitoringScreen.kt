@@ -53,6 +53,10 @@ fun MonitoringScreen(
     store: MonitoringStore,
     onBack: () -> Unit
 ) {
+    val periodSaver = androidx.compose.runtime.saveable.Saver<MonitoringPeriod?, String>(
+        save = { it?.toJson()?.toString().orEmpty() },
+        restore = { raw -> raw.takeIf(String::isNotBlank)?.let { MonitoringPeriod.fromJson(org.json.JSONObject(it)) } }
+    )
     var monitoring by remember(studentId) {
         mutableStateOf(store.load(studentId))
     }
@@ -74,8 +78,8 @@ fun MonitoringScreen(
         }
     }
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
-    var periodToDelete by remember { mutableStateOf<MonitoringPeriod?>(null) }
-    var periodToEdit by remember { mutableStateOf<MonitoringPeriod?>(null) }
+    var periodToDelete by rememberSaveable(saver = periodSaver) { mutableStateOf<MonitoringPeriod?>(null) }
+    var periodToEdit by rememberSaveable(saver = periodSaver) { mutableStateOf<MonitoringPeriod?>(null) }
     var editTitle by rememberSaveable { mutableStateOf("") }
     var editStartDate by rememberSaveable { mutableStateOf("") }
     var editEndDate by rememberSaveable { mutableStateOf("") }
