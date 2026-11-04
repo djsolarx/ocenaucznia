@@ -57,6 +57,8 @@ import java.util.UUID
 fun MonitoringManagementPanel(
     studentId: String,
     studentName: String,
+    schoolName: String,
+    schoolTown: String,
     store: MonitoringStore,
     initialMonitoring: StudentMonitoring,
     onMonitoringChanged: (StudentMonitoring) -> Unit,
@@ -382,9 +384,11 @@ fun MonitoringManagementPanel(
             title = { Text("Dodaj nauczyciela") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val previousTeachers = monitoring.periods
-                        .filter { it.id != selectedPeriod.id }
-                        .flatMap { it.teachers }
+                    val previousTeachers = (
+                        store.getTeachersForSchool(schoolName, schoolTown) +
+                            monitoring.periods.filter { it.id != selectedPeriod.id }.flatMap { it.teachers }
+                    )
+                        .filter { it.name.isNotBlank() }
                         .distinctBy { it.name.trim().lowercase(Locale.getDefault()) + "|" + it.role.trim().lowercase(Locale.getDefault()) }
                         .filterNot { candidate ->
                             selectedPeriod.teachers.any {
@@ -392,10 +396,16 @@ fun MonitoringManagementPanel(
                                     it.role.trim().equals(candidate.role.trim(), ignoreCase = true)
                             }
                         }
+                        .sortedBy { it.name.lowercase(Locale.getDefault()) }
                     if (previousTeachers.isNotEmpty()) {
                         Column {
+                            Text(
+                                if (schoolName.isNotBlank()) "Nauczyciele zapisani w bazie tej szkoły oraz poprzednich okresach:"
+                                else "Nauczyciele z poprzednich okresów:",
+                                style = MaterialTheme.typography.bodySmall
+                            )
                             OutlinedButton(onClick = { showPreviousTeacherMenu = true }, modifier = Modifier.fillMaxWidth()) {
-                                Text(if (teacherName.isBlank()) "Wybierz nauczyciela z poprzedniego okresu" else "Wybrano: $teacherName")
+                                Text(if (teacherName.isBlank()) "Wybierz nauczyciela z listy" else "Wybrano: $teacherName")
                             }
                             DropdownMenu(expanded = showPreviousTeacherMenu, onDismissRequest = { showPreviousTeacherMenu = false }) {
                                 previousTeachers.forEach { previousTeacher ->
@@ -410,6 +420,8 @@ fun MonitoringManagementPanel(
                                 }
                             }
                         }
+                    } else if (schoolName.isNotBlank()) {
+                        Text("W bazie tej szkoły nie ma jeszcze nauczycieli z wcześniejszych monitoringów. Możesz dodać nowego poniżej.", style = MaterialTheme.typography.bodySmall)
                     }
                     OutlinedTextField(value = teacherName, onValueChange = { teacherName = it }, label = { Text("Imię i nazwisko") }, singleLine = true)
                     OutlinedTextField(value = teacherRole, onValueChange = { teacherRole = it }, label = { Text("Rola / przedmiot / funkcja") }, singleLine = true)
