@@ -795,6 +795,9 @@ fun OpinionApp() {
             },
             onSupport = {
                 runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://buycoffee.to/trustmatrix"))) }
+            },
+            onOpenInstaller = {
+                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/djsolarx/ocenaucznia/releases/latest/download/app-release.apk"))) }
             }
         )
     } else if (page == -3) {
@@ -1175,8 +1178,18 @@ private fun AboutAppScreen(
     onBack: () -> Unit,
     onOpenWebsite: () -> Unit,
     onOpenManual: () -> Unit,
-    onSupport: () -> Unit
+    onSupport: () -> Unit,
+    onOpenInstaller: () -> Unit
 ) {
+    val installUrl = "https://github.com/djsolarx/ocenaucznia/releases/latest/download/app-release.apk"
+    val qrBitmap = remember {
+        runCatching {
+            val matrix = MultiFormatWriter().encode(installUrl, BarcodeFormat.QR_CODE, 720, 720)
+            Bitmap.createBitmap(720, 720, Bitmap.Config.ARGB_8888).apply {
+                for (x in 0 until 720) for (y in 0 until 720) setPixel(x, y, if (matrix[x, y]) android.graphics.Color.BLACK else android.graphics.Color.WHITE)
+            }
+        }.getOrNull()
+    }
     val navy = Color(0xFF1D3D6B)
     val lightCard = Color(0xFFF1F3F8)
     val green = Color(0xFF247B55)
@@ -1219,6 +1232,22 @@ private fun AboutAppScreen(
                     OutlinedButton(onClick = onOpenManual, modifier = Modifier.fillMaxWidth()) {
                         Text("📘  Instrukcja obsługi (PDF)")
                     }
+                }
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = lightCard)
+            ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Instalacja aplikacji", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = navy)
+                    Text("Zeskanuj kod QR aparatem telefonu, aby pobrać aktualną wersję aplikacji Opinia Ucznia z GitHub Releases.")
+                    if (qrBitmap != null) {
+                        Image(bitmap = qrBitmap.asImageBitmap(), contentDescription = "Kod QR do pobrania aplikacji Opinia Ucznia", modifier = Modifier.size(240.dp))
+                    } else Text("Nie udało się wygenerować kodu QR.")
+                    OutlinedButton(onClick = onOpenInstaller, modifier = Modifier.fillMaxWidth()) { Text("Otwórz link do instalatora") }
+                    Text("Po pobraniu pliku APK Android może poprosić o zgodę na instalowanie aplikacji z tej przeglądarki.", style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
                 }
             }
 
