@@ -1544,7 +1544,7 @@ private fun SummaryLine(label: String, value: String) {
     if (value.isNotBlank()) {
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(label, style = MaterialTheme.typography.labelMedium)
-            Text(value)
+            Text(value, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
